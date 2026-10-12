@@ -25,6 +25,35 @@ in `htdocs/custom/`; our fork re-includes this one directory with the line `!/in
    - **Upgrading from 0.1.0:** re-enabling is what creates `llx_infomatical_ticketplan` and adds the
      *Plan my day* menu entry.
 
+### Installing on a stock Dolibarr (release package)
+
+A Dolibarr that is not our fork installs the module from its release package instead:
+
+1. Download `module_infomatical-<version>.zip` from the repository's GitHub releases (tags
+   `infomatical-v<version>`). A `.sha256` file is published next to it.
+2. **Home → Setup → Modules → Deploy/install an external app/module**: upload the zip. The `custom`
+   directory must be active and writable (step 1 above). Dolibarr replaces any existing
+   `custom/infomatical/` with the package's contents.
+3. Enable *Ticket*, then *Infomatical*. When upgrading, disable and re-enable *Infomatical* (see step 4
+   above).
+
+### Releases
+
+`.github/workflows/infomatical-release.yml` publishes a release when a pull request that changes
+`htdocs/custom/infomatical/` is merged into `develop`:
+
+- The version is `$this->version` in `modInfomatical.class.php`, and the tag is `infomatical-v<version>`.
+  Digits and dots only, because the Dolibarr installer rejects anything else in the zip name.
+- **Bump `$this->version` in any pull request you want released.** If the tag already exists, the run
+  publishes nothing and ends with a warning. Existing tags and releases are never moved or overwritten.
+- Before packaging, the workflow runs `php -l` on every PHP file and checks that `en_US` and `en_GB` have
+  the same translation keys. If either check fails, nothing is released.
+- The package is the whole module directory except hidden files, with `infomatical/` at the root of the
+  zip.
+
+To release by hand (for example after a failed run), build the same zip from `htdocs/custom`:
+`zip -r -X module_infomatical-<version>.zip infomatical -x "*/.*"`.
+
 ### AI tool allow-list
 
 If the AI module's tool allow-list has been configured (**Home → Setup → Modules → AI**, setup page, tab *Tool Access Control*; constants
