@@ -39,11 +39,38 @@ never been configured, all tools are allowed.
 |---|---|---|
 | Module number | `591000` | 500000–599999 is the range Dolibarr leaves for modules not published on DoliStore. Must not change after deployment: permission ids and stored settings derive from it. |
 | Rights class / module key | `infomatical` | Used by `isModEnabled('infomatical')`, `$user->hasRight('infomatical', …)`, langs `infomatical@infomatical` |
-| Minimum Dolibarr | 25.0 (alpha) | The `aimcp` / `addMcpTools` hook comes from the 25.0 development branch |
+| Minimum Dolibarr | 24.0 | The AI write tools need 25.0 or later; see [Running on Dolibarr 24](#running-on-dolibarr-24) |
 | Dependencies | `modTicket` | |
 
 When the module gains its own permissions, number them `591000` + two digits (e.g. `59100001`),
 following `modulebuilder/template/core/modules/modMyModule.class.php`.
+
+## Running on Dolibarr 24
+
+The module runs on Dolibarr 24.0 (tested on 24.0.2, PostgreSQL) as well as on our 25 fork. Three things in
+25 that it uses are missing from 24, and it handles each at run time, with no setting to change:
+
+| Missing in 24 | What the module does on 24 | Where |
+|---|---|---|
+| `getObjectIdsRefusedToUser()` | Runs `checkUserAccessToObject()` on each ticket, which is all the 25 function does for tickets | `infomaticalTicketIdsRefusedToUser()` in `lib/infomatical.lib.php` |
+| Rights check in `McpHandler` (`getRequiredRights()`) | Each tool checks its own `getRequiredRights()` at the start of `execute()`. On 25 the rights are therefore checked twice, which is harmless. | `infomaticalAiMissingRight()` |
+| Write confirmation in `McpHandler` (`writeConfirmationPreview()`) | The four write tools are **not registered**, and the setup page marks them *Not available*. Only `infomatical_my_open_tickets` is offered. | `infomaticalAiConfirmsWrites()`, `ActionsInfomatical::addMcpTools()` |
+
+Why the write tools are withheld on 24 rather than offered without confirmation:
+
+- 24's `McpHandler::executeTool()` runs a tool as soon as it is called.
+- The assistant's own confirmation (`AI_ASK_FOR_CONFIRMATION`) is off unless an admin turns it on. At level 1
+  it only matches tool names containing create/update/delete/add/remove/modify/edit, so it would never
+  stop `infomatical_ticket_assign` or `infomatical_ticket_set_status`.
+- `ai/assistant/execute_tool.php` runs whatever tool call the browser sends, so even that confirmation is a
+  client-side step.
+- 24's MCP server has no confirmation at all.
+
+Also on 24, the MCP server runs every call as one service user (`AI_MCP_USER_ID`), so
+`infomatical_my_open_tickets` called through it returns **that user's** queue. The chat assistant runs as
+the logged-in user, as on 25.
+
+When we stop supporting 24, remove the three functions above and call the core equivalents directly.
 
 ## Upstream-merge checklist
 
@@ -65,7 +92,8 @@ upstream, check the items below. Each line names what we depend on and where to 
 | Severity cache | `loadCacheSeveritiesTickets()` still fills `$conf->cache['severity_tickets']` with `code`, `label`, `pos` | `htdocs/ticket/class/ticket.class.php` |
 | Ticket left menu | Parent `fk_mainmenu=ticket,fk_leftmenu=ticket` still exists | `htdocs/core/modules/modTicket.class.php` |
 | Ticket deletion | `Ticket::delete()` still calls the `TICKET_DELETE` trigger, and runs it before deleting the row | `htdocs/ticket/class/ticket.class.php` |
-| Access filtering | `getObjectIdsRefusedToUser()` still exists and handles `ticket` | `htdocs/core/lib/security.lib.php` |
+| Access filtering | `getObjectIdsRefusedToUser()` still exists and handles `ticket`; on 24 the fallback uses `checkUserAccessToObject()`, whose ticket rule must still match | `htdocs/core/lib/security.lib.php` |
+| Version detection | `McpHandler::checkWriteConfirmation()` keeps that name: `infomaticalAiConfirmsWrites()` looks for it, and if it is renamed the write tools silently disappear | `htdocs/ai/class/mcp.class.php` |
 | Module SQL loading | `_load_tables()` still returns `<= 0` on failure | `htdocs/core/modules/DolibarrModules.class.php` |
 
 Quick scan for changes since the last merge (replace `<previous-merge>` with that commit):

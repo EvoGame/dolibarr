@@ -74,6 +74,7 @@ Planned tickets the user can no longer open (for example after a reassignment, w
   - An **AI tools** table listing the five tools, with whether each is allowed in the chat assistant
     and in the MCP server. The table reads `AI_ASSISTANT_ALLOWED_TOOLS` and `AI_MCP_SERVER_ALLOWED_TOOLS`
     through `McpHandler::resolveAllowList()` and links to the AI module's *Tool Access Control* page.
+    On Dolibarr 24 the write tools show as *Not available*, with a warning explaining why.
     When a new tool is added to the module, add it to `$aitools` in `admin/setup.php` and give it an
     `InfomaticalToolDesc_<name>` translation.
 - **About**: version, module number, where the documentation is, and the support notice.
@@ -88,7 +89,8 @@ Lists open tickets (status not *Closed* or *Cancelled*) where the current user i
 - an internal *Ticket manager* contact (`llx_element_contact` with contact type code `SUPPORTTEC`).
 
 Tickets the user could not open on the ticket card are left out, using the same core rules: core's
-`getObjectIdsRefusedToUser()` (entity, external users, sales-representative restriction), and, when
+`getObjectIdsRefusedToUser()` on 25, or `checkUserAccessToObject()` per ticket on 24 (entity, external
+users, sales-representative restriction), and, when
 `TICKET_LIMIT_VIEW_ASSIGNED_ONLY` is on, assigned tickets only for users without the *manage* right.
 
 Sorted by severity (dictionary position `llx_c_ticket_severity.pos`, highest first), then by creation
@@ -108,6 +110,9 @@ in `htdocs/ai/assistant/parse_intent.php`). Without a matching category, the ass
 tool out of the prompt. The write tools below carry the same categories.
 
 ### AI write tools
+
+Dolibarr 25 and later only. On Dolibarr 24 they are not registered, because 24 cannot ask the user to
+confirm a write (see `docs/maintenance.md`, *Running on Dolibarr 24*).
 
 | Tool | What it does | Right required |
 |---|---|---|
@@ -131,7 +136,8 @@ How a write runs:
    and therefore notifications, fire as they would from the UI.
 
 Every tool checks access to the ticket with the same rules as the ticket card: `restrictedArea()`, plus
-`TICKET_LIMIT_VIEW_ASSIGNED_ONLY`.
+`TICKET_LIMIT_VIEW_ASSIGNED_ONLY`. Every tool, the read tool included, also checks its own rights at the
+start of `execute()`, so a version of the AI module that does not check them cannot skip them.
 
 Deliberate differences from the ticket card:
 
@@ -173,7 +179,7 @@ infomatical/
 ├── class/toolinfomaticalticketwrites.class.php  AI / MCP write tools
 ├── admin/setup.php                         Settings tab: durations, AI tool status
 ├── admin/about.php                         About tab
-├── lib/infomatical.lib.php                 Tabs of the setup pages
+├── lib/infomatical.lib.php                 Tabs of the setup pages; Dolibarr 24/25 compatibility helpers
 ├── langs/en_US/infomatical.lang            Translations, US English (reference and fallback)
 ├── langs/en_GB/infomatical.lang            Translations, British English (complete)
 ├── sql/llx_infomatical_ticketplan*.sql     Day-plan table and indexes

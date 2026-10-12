@@ -51,7 +51,7 @@ class modInfomatical extends DolibarrModules
 		$this->descriptionlong = 'ModuleInfomaticalDesc';
 		$this->editor_name = 'Infomatical';
 		$this->editor_url = '';
-		$this->version = '0.2.0';
+		$this->version = '0.3.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'ticket';
 
@@ -76,7 +76,7 @@ class modInfomatical extends DolibarrModules
 		$this->langfiles = array('infomatical@infomatical');
 
 		$this->phpmin = array(7, 4);
-		$this->need_dolibarr_version = array(25, -3);	// Built against develop 25.0.0-alpha (AI addMcpTools hook)
+		$this->need_dolibarr_version = array(24, 0);	// AI write tools need 25 (see infomaticalAiConfirmsWrites())
 
 		// Kept when the module is disabled, so an adjusted value survives a re-activation
 		$this->const = array(

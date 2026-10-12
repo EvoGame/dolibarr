@@ -67,16 +67,20 @@ class ActionsInfomatical extends CommonHookActions
 		if (!isModEnabled('ticket')) {
 			return 0;
 		}
+		dol_include_once('/infomatical/lib/infomatical.lib.php');
 		dol_include_once('/infomatical/class/toolinfomaticaltickets.class.php');
-		dol_include_once('/infomatical/class/toolinfomaticalticketwrites.class.php');
+
+		$tools = array(
+			new ToolInfomaticalTickets($parameters['db'], $parameters['user'], $parameters['conf']),
+		);
+		// Without the AI module's write confirmation (Dolibarr 24), a write would run as soon as the model calls it
+		if (infomaticalAiConfirmsWrites()) {
+			dol_include_once('/infomatical/class/toolinfomaticalticketwrites.class.php');
+			$tools[] = new ToolInfomaticalTicketWrites($parameters['db'], $parameters['user'], $parameters['conf']);
+		}
 
 		// One array of tools per module: HookManager merges results of all modules into resArray
-		$this->results = array(
-			array(
-				new ToolInfomaticalTickets($parameters['db'], $parameters['user'], $parameters['conf']),
-				new ToolInfomaticalTicketWrites($parameters['db'], $parameters['user'], $parameters['conf']),
-			),
-		);
+		$this->results = array($tools);
 		return 0;
 	}
 }

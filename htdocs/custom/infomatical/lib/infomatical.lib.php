@@ -50,3 +50,77 @@ function infomaticalAdminPrepareHead()
 
 	return $head;
 }
+
+/**
+ * Among ticket ids, those the user could not open on the ticket card (entity, external user, sales representative).
+ *
+ * Core getObjectIdsRefusedToUser() exists from Dolibarr 25 only. For tickets it runs checkUserAccessToObject() on each
+ * id, which is what the fallback does on Dolibarr 24.
+ *
+ * @param	User	$user	User
+ * @param	int[]	$ids	Ticket ids
+ * @return	int[]			Ids refused to the user
+ */
+function infomaticalTicketIdsRefusedToUser(User $user, array $ids)
+{
+	global $db;
+
+	require_once DOL_DOCUMENT_ROOT.'/core/lib/security.lib.php';
+	require_once DOL_DOCUMENT_ROOT.'/ticket/class/ticket.class.php';
+
+	$ticketstatic = new Ticket($db);
+	if (function_exists('getObjectIdsRefusedToUser')) {
+		return getObjectIdsRefusedToUser($user, $ticketstatic, $ids);
+	}
+
+	$refusedids = array();
+	foreach ($ids as $id) {
+		$id = (int) $id;
+		if ($id > 0 && !checkUserAccessToObject($user, array('ticket'), $id, $ticketstatic->table_element.'&'.$ticketstatic->element, '', 'fk_soc', 'rowid')) {
+			$refusedids[] = $id;
+		}
+	}
+
+	return $refusedids;
+}
+
+/**
+ * Whether the AI module asks the user to approve a write before it runs (McpTool::writeConfirmationPreview()).
+ *
+ * Dolibarr 25 does. Dolibarr 24 runs every tool as soon as it is called, so the write tools are not offered there.
+ *
+ * @return	bool
+ */
+function infomaticalAiConfirmsWrites()
+{
+	require_once DOL_DOCUMENT_ROOT.'/ai/class/mcp.class.php';
+
+	return method_exists('McpHandler', 'checkWriteConfirmation');
+}
+
+/**
+ * First right the user lacks among those an AI tool declares in getRequiredRights().
+ *
+ * Dolibarr 25's McpHandler checks them before running a tool, Dolibarr 24's does not: the tools check them again
+ * themselves, so they are enforced on both.
+ *
+ * @param	User							$user		User running the tool
+ * @param	array<int,array<int,string>>|string	$required	Rights triples (module, permission, sub-permission)
+ * @return	string									'' when allowed, otherwise the missing right as "module/permission"
+ */
+function infomaticalAiMissingRight(User $user, $required)
+{
+	if (!is_array($required)) {
+		return 'undeclared';
+	}
+	foreach ($required as $right) {
+		$module = (string) ($right[0] ?? '');
+		$perm = (string) ($right[1] ?? '');
+		$subperm = (string) ($right[2] ?? '');
+		if ($module === '' || !$user->hasRight($module, $perm, $subperm)) {
+			return $module.'/'.$perm.($subperm !== '' ? '/'.$subperm : '');
+		}
+	}
+
+	return '';
+}
