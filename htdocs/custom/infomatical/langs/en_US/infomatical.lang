@@ -14,7 +14,7 @@ InfomaticalNothingOpen = No open tickets in your queue.
 
 # Day planning
 InfomaticalPlanMyDay = Plan my day
-InfomaticalPlanSummary = %s tickets planned, %s of a %s workday
+InfomaticalPlanSummary = %s tickets planned, %s against a workday of %s
 InfomaticalPlanDone = %s done, %s of open work left
 InfomaticalPlanFreeTime = %s still free
 InfomaticalPlanOverbooked = Overbooked by %s
@@ -39,3 +39,28 @@ InfomaticalPreviewUnassign = Remove the assignee of ticket %s.
 InfomaticalPreviewSetStatus = Change the status of ticket %s from "%s" to "%s".
 InfomaticalPreviewUpdate = Update ticket %s: %s.
 InfomaticalPreviewAddNote = Add a private note to ticket %s: "%s"
+
+# Module setup
+InfomaticalSetup = Infomatical setup
+InfomaticalWorkdayLength = Length of a workday
+InfomaticalWorkdayLengthHelp = Each technician's day plan is measured against this. Above it, the plan shows as overbooked.
+InfomaticalDefaultEstimate = Default estimate for a ticket
+InfomaticalDefaultEstimateHelp = Pre-filled when a ticket is added to a day plan. Technicians can change it per ticket.
+InfomaticalErrorWorkdayLength = The workday must be between 0h15 and 24h00.
+InfomaticalErrorDefaultEstimate = The default estimate must be between 0h00 and 24h00.
+InfomaticalAiTools = AI tools
+InfomaticalAiModuleDisabled = The AI module is not enabled, so these tools are not available. Enable the AI module to use them.
+InfomaticalAiToolsHelp = Tools this module adds to the AI assistant and the MCP server. Once an allow-list has been saved in the AI module, new tools stay blocked until they are ticked there.
+InfomaticalAiTool = Tool
+InfomaticalToolDesc_infomatical_my_open_tickets = Lists the user's open tickets, most urgent first
+InfomaticalToolDesc_infomatical_ticket_assign = Assigns a ticket to a user, or removes its assignee
+InfomaticalToolDesc_infomatical_ticket_set_status = Changes the status of an open ticket, including closing it
+InfomaticalToolDesc_infomatical_ticket_update = Changes the severity or progress of an open ticket
+InfomaticalToolDesc_infomatical_ticket_add_note = Adds a private note to a ticket, never sent to the customer
+InfomaticalToolConfirmed = changes data, asks the user to confirm first
+InfomaticalAllowed = Allowed
+InfomaticalNotAllowed = Blocked
+InfomaticalModuleNumber = Module number
+InfomaticalDocumentation = Documentation
+InfomaticalDocumentationHelp = Maintenance and architecture notes are in the module's docs/ directory (htdocs/custom/infomatical/docs/ in the source repository).
+InfomaticalSupportNotice = Infomatical is developed for our own use. The source is public, but it is not marketed or supported for anyone else.

@@ -29,7 +29,8 @@ in `htdocs/custom/`; our fork re-includes this one directory with the line `!/in
 
 If the AI module's tool allow-list has been configured (**Home → Setup → Modules → AI**, setup page, tab *Tool Access Control*; constants
 `AI_ASSISTANT_ALLOWED_TOOLS` and `AI_MCP_SERVER_ALLOWED_TOOLS`), new tools are **not** allowed
-automatically. Tick the `infomatical_*` tools there after enabling the module or upgrading it. While the list has
+automatically. Tick the `infomatical_*` tools there after enabling the module or upgrading it. The
+module's own setup page shows which of its tools are allowed or blocked, and links to that page. While the list has
 never been configured, all tools are allowed.
 
 ## Module identity
@@ -53,6 +54,7 @@ upstream, check the items below. Each line names what we depend on and where to 
 |---|---|---|
 | Hook `addMcpTools` in context `aimcp` | Still called, same parameters (`db`, `user`, `conf`), results still read from `resArray` | `htdocs/ai/class/mcp.class.php`, `loadExternalTools()` |
 | `McpTool` base class | Abstract methods and `getRequiredRights()` / `writeConfirmationPreview()` / `writePrecheck()` contract unchanged | `htdocs/ai/class/mcptool.class.php` |
+| Tool allow-lists | `McpHandler::resolveAllowList()` and the two `AI_*_ALLOWED_TOOLS` constants still exist (used by the setup page) | `htdocs/ai/class/mcp.class.php` |
 | Write confirmation | `McpHandler::checkWriteConfirmation()` still runs precheck, preview, then execute on confirmation | `htdocs/ai/class/mcp.class.php` |
 | Ticket write methods | `assignUser()`, `close()`, `setStatut()`, `setReadDate()`, `update()`, `setProgression()`, `createTicketMessage()` keep their signatures | `htdocs/ticket/class/ticket.class.php` |
 | Ticket card rules | Rights and steps for assign, status change, close, edit, add message still match the AI tools | `htdocs/ticket/card.php` |

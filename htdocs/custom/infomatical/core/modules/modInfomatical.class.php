@@ -66,7 +66,7 @@ class modInfomatical extends DolibarrModules
 		);
 
 		$this->dirs = array();
-		$this->config_page_url = array();
+		$this->config_page_url = array('setup.php@infomatical');
 
 		$this->hidden = false;
 		$this->depends = array('modTicket');

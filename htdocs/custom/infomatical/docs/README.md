@@ -41,7 +41,9 @@ Each technician plans their own days. Nobody can see or change another person's 
 - **Carry forward.** One button copies the unfinished tickets from the most recent earlier plan onto
   this day, keeping their estimates and notes.
 
-Settings (**Home → Setup → Other**; created when the module is enabled, kept when it is disabled):
+Settings are on the module's setup page: the settings icon on the module card in **Home → Setup →
+Modules**, or `admin/setup.php`. Durations are entered as hours and minutes and stored in minutes. The
+values are created when the module is enabled and kept when it is disabled:
 
 | Constant | Default | Meaning |
 |---|---|---|
@@ -61,6 +63,20 @@ Instead, the module trigger deletes the plan rows on `TICKET_DELETE`, and every 
 
 Planned tickets the user can no longer open (for example after a reassignment, with
 `TICKET_LIMIT_VIEW_ASSIGNED_ONLY` on) are hidden, using the same core rules as the queue.
+
+### Setup page
+
+`admin/setup.php`, for admins only, with two tabs:
+
+- **Settings**
+  - The two day-planning durations, entered with core's `Form::select_duration()`. The working day
+    must be between 0h15 and 24h00; the default estimate between 0h00 and 24h00.
+  - An **AI tools** table listing the five tools, with whether each is allowed in the chat assistant
+    and in the MCP server. The table reads `AI_ASSISTANT_ALLOWED_TOOLS` and `AI_MCP_SERVER_ALLOWED_TOOLS`
+    through `McpHandler::resolveAllowList()` and links to the AI module's *Tool Access Control* page.
+    When a new tool is added to the module, add it to `$aitools` in `admin/setup.php` and give it an
+    `InfomaticalToolDesc_<name>` translation.
+- **About**: version, module number, where the documentation is, and the support notice.
 
 ### My ticket queue
 
@@ -132,7 +148,7 @@ Deliberate differences from the ticket card:
 | Left menu entries under `mainmenu=ticket` | `modInfomatical::$menu` | `plan.php`, `myqueue.php` |
 | Trigger `TICKET_DELETE` | `modInfomatical::$module_parts['triggers']` | `InterfaceInfomaticalTriggers` |
 | Table `llx_infomatical_ticketplan` | `sql/`, loaded by `modInfomatical::init()` | `InfomaticalTicketPlan` |
-| Settings | `modInfomatical::$const` | read in `plan.php` |
+| Settings | `modInfomatical::$const`, page `modInfomatical::$config_page_url` | `admin/setup.php`, read in `plan.php` |
 | Hook context `aimcp`, method `addMcpTools` | `modInfomatical::$module_parts['hooks']` | `ActionsInfomatical::addMcpTools()` |
 | AI tool classes (extend core `McpTool`) | registered by the hook | `ToolInfomaticalTickets` (read), `ToolInfomaticalTicketWrites` (write) |
 | Shared query | none | `InfomaticalTicketQueue::fetchOpenForUser()` |
@@ -155,6 +171,9 @@ infomatical/
 ├── class/infomaticalticketqueue.class.php  Shared "my open tickets" query
 ├── class/toolinfomaticaltickets.class.php  AI / MCP read tool
 ├── class/toolinfomaticalticketwrites.class.php  AI / MCP write tools
+├── admin/setup.php                         Settings tab: durations, AI tool status
+├── admin/about.php                         About tab
+├── lib/infomatical.lib.php                 Tabs of the setup pages
 ├── langs/en_US/infomatical.lang            Translations, US English (reference and fallback)
 ├── langs/en_GB/infomatical.lang            Translations, British English (complete)
 ├── sql/llx_infomatical_ticketplan*.sql     Day-plan table and indexes
