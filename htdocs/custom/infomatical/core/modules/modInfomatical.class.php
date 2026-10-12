@@ -51,12 +51,13 @@ class modInfomatical extends DolibarrModules
 		$this->descriptionlong = 'ModuleInfomaticalDesc';
 		$this->editor_name = 'Infomatical';
 		$this->editor_url = '';
-		$this->version = '0.1.0';
+		$this->version = '0.2.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'ticket';
 
 		$this->module_parts = array(
-			'triggers' => 0,
+			// core/triggers: cleans day plans on TICKET_DELETE
+			'triggers' => 1,
 			// 'aimcp': addMcpTools hook of the AI module (htdocs/ai/class/mcp.class.php)
 			'hooks' => array(
 				'aimcp',
@@ -77,7 +78,11 @@ class modInfomatical extends DolibarrModules
 		$this->phpmin = array(7, 4);
 		$this->need_dolibarr_version = array(25, -3);	// Built against develop 25.0.0-alpha (AI addMcpTools hook)
 
-		$this->const = array();
+		// Kept when the module is disabled, so an adjusted value survives a re-activation
+		$this->const = array(
+			1 => array('INFOMATICAL_WORKDAY_MINUTES', 'chaine', '450', 'Length of a technician working day, in minutes (day planning)', 1, 'current', 0),
+			2 => array('INFOMATICAL_DEFAULT_PLAN_MINUTES', 'chaine', '60', 'Estimate given to a ticket added to a day plan, in minutes', 1, 'current', 0),
+		);
 
 		if (!isModEnabled('infomatical')) {
 			$conf->infomatical = new stdClass();
@@ -96,12 +101,26 @@ class modInfomatical extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=ticket,fk_leftmenu=ticket',
 			'type' => 'left',
+			'titre' => 'InfomaticalPlanMyDay',
+			'mainmenu' => 'ticket',
+			'leftmenu' => 'infomatical_plan',
+			'url' => '/infomatical/plan.php',
+			'langs' => 'infomatical@infomatical',
+			'position' => 106,
+			'enabled' => 'isModEnabled("infomatical")',
+			'perms' => '$user->hasRight("ticket", "read")',
+			'target' => '',
+			'user' => 0,
+		);
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=ticket,fk_leftmenu=ticket',
+			'type' => 'left',
 			'titre' => 'InfomaticalMyQueue',
 			'mainmenu' => 'ticket',
 			'leftmenu' => 'infomatical_myqueue',
 			'url' => '/infomatical/myqueue.php',
 			'langs' => 'infomatical@infomatical',
-			'position' => 106,
+			'position' => 107,
 			'enabled' => 'isModEnabled("infomatical")',
 			'perms' => '$user->hasRight("ticket", "read")',
 			'target' => '',
@@ -117,6 +136,12 @@ class modInfomatical extends DolibarrModules
 	 */
 	public function init($options = '')
 	{
+		// _load_tables() returns 0, not a negative value, when an SQL file fails
+		$result = $this->_load_tables('/infomatical/sql/');
+		if ($result <= 0) {
+			return -1;
+		}
+
 		$this->remove($options);
 
 		return $this->_init(array(), $options);

@@ -18,9 +18,12 @@ in `htdocs/custom/`; our fork re-includes this one directory with the line `!/in
 2. Deploy the fork as usual. The module is under `htdocs/custom/infomatical/`.
 3. **Home → Setup → Modules**: enable *Ticket* first (Infomatical depends on it), then *Infomatical*
    (family *Customer Relationship Management*).
-4. After **any** change to `modInfomatical.class.php` (menus, hooks, permissions), disable and
-   re-enable the module. Dolibarr copies the descriptor into the database (`llx_menu`,
-   `llx_const` for hooks) only on activation.
+4. After **any** change to `modInfomatical.class.php` (menus, hooks, triggers, constants) or to `sql/`,
+   disable and re-enable the module. Dolibarr copies the descriptor into the database (`llx_menu`,
+   `llx_const`) and runs the module's SQL files only on activation. The SQL files are safe to run again:
+   "already exists" errors are ignored.
+   - **Upgrading from 0.1.0:** re-enabling is what creates `llx_infomatical_ticketplan` and adds the
+     *Plan my day* menu entry.
 
 ### AI tool allow-list
 
@@ -59,6 +62,9 @@ upstream, check the items below. Each line names what we depend on and where to 
 | Contact type | Internal ticket contact code is still `SUPPORTTEC` | `htdocs/install/mysql/data/llx_c_type_contact.sql` |
 | Severity cache | `loadCacheSeveritiesTickets()` still fills `$conf->cache['severity_tickets']` with `code`, `label`, `pos` | `htdocs/ticket/class/ticket.class.php` |
 | Ticket left menu | Parent `fk_mainmenu=ticket,fk_leftmenu=ticket` still exists | `htdocs/core/modules/modTicket.class.php` |
+| Ticket deletion | `Ticket::delete()` still calls the `TICKET_DELETE` trigger, and runs it before deleting the row | `htdocs/ticket/class/ticket.class.php` |
+| Access filtering | `getObjectIdsRefusedToUser()` still exists and handles `ticket` | `htdocs/core/lib/security.lib.php` |
+| Module SQL loading | `_load_tables()` still returns `<= 0` on failure | `htdocs/core/modules/DolibarrModules.class.php` |
 
 Quick scan for changes since the last merge (replace `<previous-merge>` with that commit):
 
@@ -100,8 +106,32 @@ with `infomatical_` to avoid clashes with core tools. Any tool that writes data 
 **Storage**
 
 Use ticket extra fields for single values shown on the ticket card. For anything else, add
-`sql/llx_infomatical_<name>.sql` (and `.key.sql`) and load them in `modInfomatical::init()` with
-`$this->_load_tables('/infomatical/sql/')`. Never alter core tables.
+`sql/llx_infomatical_<name>.sql` (and `.key.sql`). `modInfomatical::init()` already loads everything in
+`sql/` with `_load_tables()`. Never alter core tables.
+
+- **Compatibility.** Write the SQL in MySQL syntax. Dolibarr converts it for PostgreSQL.
+- **Duplicates.** Avoid relying on unique-key errors inside a transaction: on PostgreSQL a failed
+  statement aborts the whole transaction. `InfomaticalTicketPlan::add()` checks for existing rows first.
+- **Foreign keys.** Do not add a foreign key to `llx_ticket`, because `Ticket::delete()` deletes the
+  ticket without knowing about our tables. Clean up in the trigger instead.
+
+**Translations**
+
+Every string has a key in **both** `langs/en_US/infomatical.lang` (US English) and
+`langs/en_GB/infomatical.lang` (British English). Keep the two files' keys identical:
+
+```sh
+diff <(grep -oE '^[A-Za-z]+' langs/en_US/infomatical.lang | sort) \
+     <(grep -oE '^[A-Za-z]+' langs/en_GB/infomatical.lang | sort)
+```
+
+Two limits of core's `$langs->trans()`:
+
+- It passes at most **four** values into a string; a fifth argument is taken as a maximum length.
+- It does not support positional placeholders (`%1$s`).
+
+Split long sentences rather than exceed either limit. The AI tools' descriptions and error messages are
+English on purpose: they are read by the language model, not shown in the UI.
 
 ## Known limits
 
@@ -109,3 +139,5 @@ Use ticket extra fields for single values shown on the ticket card. For anything
 - `Ticket::load_board()` (the open-ticket counter on the home page) counts **all** open tickets, not the
   user's. It has no hook, so it cannot be changed from this module.
 - A ticket has one assignee. Other technicians appear in the queue only as *Ticket manager* contacts.
+- Day plans are personal. Team leads cannot yet see their technicians' plans.
+- Estimates are planning figures only: they are not linked to time spent (agenda events or interventions).

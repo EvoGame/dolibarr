@@ -24,6 +24,44 @@ We chose enhancement rather than replacement because:
 
 ## Features
 
+### Plan my day
+
+Menu: **Tickets → Plan my day** (`plan.php`), for internal users with the `ticket read` permission.
+Each technician plans their own days. Nobody can see or change another person's plan.
+
+- **Day navigation.** Previous/next day buttons and a date selector. Opens on today, in the user's timezone.
+- **Planned list.** The day's tickets in the order the technician will work them. Each row has a move
+  up/down control, an estimate in minutes (in steps of 15), a short note, and a remove action. Closed
+  tickets stay in the list with their status, as a record of what was done.
+- **Summary.** Number of tickets, total estimate against the working day, tickets done, open work left,
+  and either the free time or an *overbooked* warning.
+- **Not planned for this day.** The rest of the user's queue (the same tickets as *My ticket queue*), each
+  with an *Add* button and a *Last planned* link to the most recent earlier day it was on. Only tickets
+  in the user's own queue can be added. The server checks this; it does not rely on the form.
+- **Carry forward.** One button copies the unfinished tickets from the most recent earlier plan onto
+  this day, keeping their estimates and notes.
+
+Settings (**Home → Setup → Other**; created when the module is enabled, kept when it is disabled):
+
+| Constant | Default | Meaning |
+|---|---|---|
+| `INFOMATICAL_WORKDAY_MINUTES` | `450` (7h30) | Length of the working day the plan is measured against |
+| `INFOMATICAL_DEFAULT_PLAN_MINUTES` | `60` | Estimate given to a ticket when it is added |
+
+Storage is the table `llx_infomatical_ticketplan`: one row per ticket per technician per day, unique on
+`(entity, fk_user, date_plan, fk_ticket)`. The row holds the order (`rang`), the estimate in minutes
+(`duration_planned`) and the note.
+
+Days are stored as `YYYY-MM-DD` strings in the user's calendar, so a timezone conversion can never move a
+plan to the neighbouring day.
+
+There is deliberately no foreign key to `llx_ticket`, because `Ticket::delete()` would fail on it.
+Instead, the module trigger deletes the plan rows on `TICKET_DELETE`, and every read joins
+`llx_ticket`, so any leftover row is never shown.
+
+Planned tickets the user can no longer open (for example after a reassignment, with
+`TICKET_LIMIT_VIEW_ASSIGNED_ONLY` on) are hidden, using the same core rules as the queue.
+
 ### My ticket queue
 
 Menu: **Tickets → My ticket queue** (`myqueue.php`), internal users with `ticket read` permission.
@@ -91,7 +129,10 @@ Deliberate differences from the ticket card:
 
 | Extension point | Declared in | Implemented in |
 |---|---|---|
-| Left menu entry under `mainmenu=ticket` | `modInfomatical::$menu` | `myqueue.php` |
+| Left menu entries under `mainmenu=ticket` | `modInfomatical::$menu` | `plan.php`, `myqueue.php` |
+| Trigger `TICKET_DELETE` | `modInfomatical::$module_parts['triggers']` | `InterfaceInfomaticalTriggers` |
+| Table `llx_infomatical_ticketplan` | `sql/`, loaded by `modInfomatical::init()` | `InfomaticalTicketPlan` |
+| Settings | `modInfomatical::$const` | read in `plan.php` |
 | Hook context `aimcp`, method `addMcpTools` | `modInfomatical::$module_parts['hooks']` | `ActionsInfomatical::addMcpTools()` |
 | AI tool classes (extend core `McpTool`) | registered by the hook | `ToolInfomaticalTickets` (read), `ToolInfomaticalTicketWrites` (write) |
 | Shared query | none | `InfomaticalTicketQueue::fetchOpenForUser()` |
@@ -99,21 +140,26 @@ Deliberate differences from the ticket card:
 The dashboard and the AI tool share `InfomaticalTicketQueue`, so "my queue" means the same thing in
 both places. Change the rule there, not in either caller.
 
-The module creates no tables yet. New features that need storage (for example planned dates for a
-technician's day) should use their own `llx_infomatical_*` tables keyed on `llx_ticket.rowid`, or
-ticket extra fields; never alter core tables.
+The day plan also uses `InfomaticalTicketQueue` for its "not planned" list and to check what may be
+added. New storage should follow the day plan's lead: an `llx_infomatical_*` table keyed on
+`llx_ticket.rowid`, or ticket extra fields. Never alter core tables.
 
 ## File layout
 
 ```
 infomatical/
 ├── core/modules/modInfomatical.class.php   Module descriptor (id, menus, hooks, dependencies)
+├── core/triggers/interface_99_modInfomatical_InfomaticalTriggers.class.php  Cleans plans of deleted tickets
 ├── class/actions_infomatical.class.php     Hook implementations
+├── class/infomaticalticketplan.class.php   Day plans (llx_infomatical_ticketplan)
 ├── class/infomaticalticketqueue.class.php  Shared "my open tickets" query
 ├── class/toolinfomaticaltickets.class.php  AI / MCP read tool
 ├── class/toolinfomaticalticketwrites.class.php  AI / MCP write tools
-├── langs/en_US/infomatical.lang            Translations
-├── myqueue.php                             Technician dashboard
+├── langs/en_US/infomatical.lang            Translations, US English (reference and fallback)
+├── langs/en_GB/infomatical.lang            Translations, British English (complete)
+├── sql/llx_infomatical_ticketplan*.sql     Day-plan table and indexes
+├── plan.php                                Plan my day
+├── myqueue.php                             My ticket queue
 ├── README.md                               Short public description, shown on the module page
 └── docs/                                   This documentation
 ```
