@@ -18,6 +18,12 @@ is tracked. Keep both changes if a merge conflicts on them:
   the module's keys are in its own `langs/`, not in `htdocs/langs/`. Without it, every module key is
   reported as a missing translation.
 
+One more upstream workflow is limited to upstream, because it cannot work in a fork:
+
+- `.github/workflows/ci-on-pushpull-checkfilesetlock.yml` (*Check lock on fileset unalterable_files*) needs
+  upstream's GitHub App credentials, so it failed on every push and pull request here. Its `if:` is now
+  `github.repository == 'Dolibarr/dolibarr'` only, and the job is skipped in this fork.
+
 ## Deployment
 
 1. Make sure the `custom` directory is active in `conf/conf.php`:
