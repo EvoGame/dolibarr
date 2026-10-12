@@ -8,6 +8,16 @@ The module is kept in our Dolibarr fork at `htdocs/custom/infomatical/`. Upstrea
 in `htdocs/custom/`; our fork re-includes this one directory with the line `!/infomatical/` in
 `htdocs/custom/.gitignore`. If an upstream merge ever conflicts on that file, keep that line.
 
+Two upstream CI files are adjusted for the same reason, because upstream assumes nothing under `htdocs/custom/`
+is tracked. Keep both changes if a merge conflicts on them:
+
+- `dev/setup/codesniffer/ruleset.xml`: the `htdocs/custom/` exclusion skips `infomatical/`, so PHP
+  CodeSniffer checks the module like core code. Without it, the pre-commit job fails with "No files were
+  checked" on any pull request whose PHP changes are all in the module.
+- `dev/translation/sanity_check_trans_missing_unused.sh`: `htdocs/custom/` is left out of the scan, because
+  the module's keys are in its own `langs/`, not in `htdocs/langs/`. Without it, every module key is
+  reported as a missing translation.
+
 ## Deployment
 
 1. Make sure the `custom` directory is active in `conf/conf.php`:
