@@ -33,6 +33,10 @@ Lists open tickets (status not *Closed* or *Cancelled*) where the current user i
 - the assignee (`llx_ticket.fk_user_assign`), or
 - an internal *Ticket manager* contact (`llx_element_contact` with contact type code `SUPPORTTEC`).
 
+Tickets the user could not open on the ticket card are left out, using the same core rules: core's
+`getObjectIdsRefusedToUser()` (entity, external users, sales-representative restriction), and, when
+`TICKET_LIMIT_VIEW_ASSIGNED_ONLY` is on, assigned tickets only for users without the *manage* right.
+
 Sorted by severity (dictionary position `llx_c_ticket_severity.pos`, highest first), then by creation
 date (oldest first). Capped at 500 rows (`InfomaticalTicketQueue::MAX_ROWS`).
 

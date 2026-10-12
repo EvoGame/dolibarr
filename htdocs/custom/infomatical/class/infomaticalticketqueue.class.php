@@ -21,6 +21,7 @@
  * \brief   Open tickets a technician is responsible for (shared by the dashboard and the AI tool)
  */
 
+require_once DOL_DOCUMENT_ROOT.'/core/lib/security.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/ticket/class/ticket.class.php';
 
 /**
@@ -63,6 +64,10 @@ class InfomaticalTicketQueue
 
 		$limit = min(max(1, (int) $limit), self::MAX_ROWS);
 
+		// With TICKET_LIMIT_VIEW_ASSIGNED_ONLY, ticket/card.php shows non-managers only the tickets assigned to them
+		$canmanage = getDolGlobalString('MAIN_USE_ADVANCED_PERMS') ? $user->hasRight('ticket', 'manage_advance') : $user->hasRight('ticket', 'write');
+		$assignedonly = !$user->socid && getDolGlobalString('TICKET_LIMIT_VIEW_ASSIGNED_ONLY') && !$canmanage;
+
 		$sql = "SELECT t.rowid, t.ref, t.track_id, t.subject, t.fk_statut, t.progress, t.severity_code,";
 		$sql .= " t.fk_soc, s.nom as thirdparty, t.datec, t.date_last_msg_sent, t.fk_user_assign";
 		$sql .= " FROM ".$this->db->prefix()."ticket as t";
@@ -70,10 +75,13 @@ class InfomaticalTicketQueue
 		$sql .= " WHERE t.entity IN (".getEntity('ticket').")";
 		$sql .= " AND t.fk_statut NOT IN (".Ticket::STATUS_CLOSED.", ".Ticket::STATUS_CANCELED.")";
 		$sql .= " AND (t.fk_user_assign = ".((int) $user->id);
-		$sql .= " OR EXISTS (SELECT 1 FROM ".$this->db->prefix()."element_contact as ec";
-		$sql .= " INNER JOIN ".$this->db->prefix()."c_type_contact as tc ON tc.rowid = ec.fk_c_type_contact";
-		$sql .= " WHERE ec.element_id = t.rowid AND ec.fk_socpeople = ".((int) $user->id);
-		$sql .= " AND tc.element = 'ticket' AND tc.source = 'internal' AND tc.code = 'SUPPORTTEC'))";
+		if (!$assignedonly) {
+			$sql .= " OR EXISTS (SELECT 1 FROM ".$this->db->prefix()."element_contact as ec";
+			$sql .= " INNER JOIN ".$this->db->prefix()."c_type_contact as tc ON tc.rowid = ec.fk_c_type_contact";
+			$sql .= " WHERE ec.element_id = t.rowid AND ec.fk_socpeople = ".((int) $user->id);
+			$sql .= " AND tc.element = 'ticket' AND tc.source = 'internal' AND tc.code = 'SUPPORTTEC')";
+		}
+		$sql .= ")";
 		if ($user->socid > 0) {
 			$sql .= " AND t.fk_soc = ".((int) $user->socid);
 		}
@@ -95,8 +103,19 @@ class InfomaticalTicketQueue
 			$severities[$sev['code']] = array('label' => $sev['label'], 'pos' => (int) $sev['pos']);
 		}
 
-		$rows = array();
+		$objs = array();
 		while ($obj = $this->db->fetch_object($resql)) {
+			$objs[(int) $obj->rowid] = $obj;
+		}
+		$this->db->free($resql);
+
+		// Drop the tickets the card would refuse (e.g. customers of other sales representatives)
+		foreach (getObjectIdsRefusedToUser($user, $ticketstatic, array_keys($objs)) as $refusedid) {
+			unset($objs[$refusedid]);
+		}
+
+		$rows = array();
+		foreach ($objs as $obj) {
 			$code = (string) $obj->severity_code;
 			$rows[] = array(
 				'id' => (int) $obj->rowid,
@@ -115,7 +134,6 @@ class InfomaticalTicketQueue
 				'assigned_to_me' => ((int) $obj->fk_user_assign === (int) $user->id),
 			);
 		}
-		$this->db->free($resql);
 
 		// Most severe first, then oldest first
 		usort($rows, static function ($a, $b) {

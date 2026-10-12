@@ -427,13 +427,13 @@ class ToolInfomaticalTicketWrites extends McpTool
 			return false;
 		}
 		if (dol_strtolower($login) === 'me') {
-			return $this->user;
-		}
-
-		$assignee = new User($this->db);
-		if ($assignee->fetch(0, $login) <= 0) {
-			$error = "No user found with login '".$login."'.";
-			return null;
+			$assignee = $this->user;
+		} else {
+			$assignee = new User($this->db);
+			if ($assignee->fetch(0, $login) <= 0) {
+				$error = "No user found with login '".$login."'.";
+				return null;
+			}
 		}
 		if ((int) $assignee->status !== 1 || $assignee->socid > 0) {
 			$error = "User '".$login."' is disabled or external and cannot be assigned tickets.";
