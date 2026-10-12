@@ -47,7 +47,41 @@ the `ticket read` permission and runs as the calling user, so nobody can read an
 It is tagged with the intent categories `thirdparty` and `project`, because those are the categories
 the assistant activates for the words "ticket", "support" and "incident" (see `classifyIntentUniversal()`
 in `htdocs/ai/assistant/parse_intent.php`). Without a matching category, the assistant filters the
-tool out of the prompt.
+tool out of the prompt. The write tools below carry the same categories.
+
+### AI write tools
+
+| Tool | What it does | Right required |
+|---|---|---|
+| `infomatical_ticket_assign` | Assigns a ticket to a user (by login, or `me`), or removes the assignee | ticket *manage* |
+| `infomatical_ticket_set_status` | Sets `read`, `in_progress`, `need_more_info`, `waiting`, `closed` or `canceled` | ticket *manage* |
+| `infomatical_ticket_update` | Changes severity and/or progress | ticket write |
+| `infomatical_ticket_add_note` | Adds a private note (never shown or emailed to the customer) | ticket read |
+
+The rights match what `ticket/card.php` requires for the same action. *Manage* means ticket write, or
+the "manage tickets" advanced permission (`manage_advance`) when `MAIN_USE_ADVANCED_PERMS` is on.
+
+How a write runs:
+
+1. The AI module's `McpHandler` calls `writePrecheck()`, which refuses changes that cannot work. For
+   example: unknown ticket or user, a closed ticket, no actual change, or a status disabled in ticket setup.
+2. It then shows the user the sentence from `writeConfirmationPreview()` and stores a confirmation tied
+   to the user and the exact arguments (`AiWriteConfirmation`, 10 minutes by default). If the
+   arguments change, the confirmation is refused.
+3. Only after the user confirms does `execute()` run. It repeats the checks, because the ticket may have
+   changed in between, then calls the same core `Ticket` methods as the ticket card. Core triggers,
+   and therefore notifications, fire as they would from the UI.
+
+Every tool checks access to the ticket with the same rules as the ticket card: `restrictedArea()`, plus
+`TICKET_LIMIT_VIEW_ASSIGNED_ONLY`.
+
+Deliberate differences from the ticket card:
+
+- **Assigning** adds the new assignee as a *Ticket manager* contact but keeps the other contacts. The card
+  removes them, which would drop technicians from each other's queues.
+- **Closed or canceled tickets** cannot be reopened or edited through the AI. Use the ticket card.
+- **Notes are private only.** Replies to the customer (public messages, email) are not available yet,
+  because sending email on the AI's behalf needs its own decision.
 
 ## How it plugs into Dolibarr
 
@@ -55,7 +89,7 @@ tool out of the prompt.
 |---|---|---|
 | Left menu entry under `mainmenu=ticket` | `modInfomatical::$menu` | `myqueue.php` |
 | Hook context `aimcp`, method `addMcpTools` | `modInfomatical::$module_parts['hooks']` | `ActionsInfomatical::addMcpTools()` |
-| AI tool class (extends core `McpTool`) | registered by the hook | `ToolInfomaticalTickets` |
+| AI tool classes (extend core `McpTool`) | registered by the hook | `ToolInfomaticalTickets` (read), `ToolInfomaticalTicketWrites` (write) |
 | Shared query | none | `InfomaticalTicketQueue::fetchOpenForUser()` |
 
 The dashboard and the AI tool share `InfomaticalTicketQueue`, so "my queue" means the same thing in
@@ -72,7 +106,8 @@ infomatical/
 ├── core/modules/modInfomatical.class.php   Module descriptor (id, menus, hooks, dependencies)
 ├── class/actions_infomatical.class.php     Hook implementations
 ├── class/infomaticalticketqueue.class.php  Shared "my open tickets" query
-├── class/toolinfomaticaltickets.class.php  AI / MCP tools
+├── class/toolinfomaticaltickets.class.php  AI / MCP read tool
+├── class/toolinfomaticalticketwrites.class.php  AI / MCP write tools
 ├── langs/en_US/infomatical.lang            Translations
 ├── myqueue.php                             Technician dashboard
 ├── README.md                               Short public description, shown on the module page

@@ -9,3 +9,9 @@ InfomaticalRole = My role
 InfomaticalRoleAssigned = Assigned
 InfomaticalRoleContact = Ticket manager contact
 InfomaticalNothingOpen = No open tickets in your queue.
+# AI write confirmations (shown to the user before a change is applied)
+InfomaticalPreviewAssign = Assign ticket %s to %s.
+InfomaticalPreviewUnassign = Remove the assignee of ticket %s.
+InfomaticalPreviewSetStatus = Change the status of ticket %s from "%s" to "%s".
+InfomaticalPreviewUpdate = Update ticket %s: %s.
+InfomaticalPreviewAddNote = Add a private note to ticket %s: "%s"

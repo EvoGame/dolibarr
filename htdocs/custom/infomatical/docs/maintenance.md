@@ -26,7 +26,7 @@ in `htdocs/custom/`; our fork re-includes this one directory with the line `!/in
 
 If the AI module's tool allow-list has been configured (**Home → Setup → Modules → AI**, setup page, tab *Tool Access Control*; constants
 `AI_ASSISTANT_ALLOWED_TOOLS` and `AI_MCP_SERVER_ALLOWED_TOOLS`), new tools are **not** allowed
-automatically. Tick `infomatical_my_open_tickets` there after enabling the module. While the list has
+automatically. Tick the `infomatical_*` tools there after enabling the module or upgrading it. While the list has
 never been configured, all tools are allowed.
 
 ## Module identity
@@ -49,7 +49,10 @@ upstream, check the items below. Each line names what we depend on and where to 
 | Dependency | Check | Where |
 |---|---|---|
 | Hook `addMcpTools` in context `aimcp` | Still called, same parameters (`db`, `user`, `conf`), results still read from `resArray` | `htdocs/ai/class/mcp.class.php`, `loadExternalTools()` |
-| `McpTool` base class | Abstract methods and `getRequiredRights()` / `writeConfirmationPreview()` contract unchanged | `htdocs/ai/class/mcptool.class.php` |
+| `McpTool` base class | Abstract methods and `getRequiredRights()` / `writeConfirmationPreview()` / `writePrecheck()` contract unchanged | `htdocs/ai/class/mcptool.class.php` |
+| Write confirmation | `McpHandler::checkWriteConfirmation()` still runs precheck, preview, then execute on confirmation | `htdocs/ai/class/mcp.class.php` |
+| Ticket write methods | `assignUser()`, `close()`, `setStatut()`, `setReadDate()`, `update()`, `setProgression()`, `createTicketMessage()` keep their signatures | `htdocs/ticket/class/ticket.class.php` |
+| Ticket card rules | Rights and steps for assign, status change, close, edit, add message still match the AI tools | `htdocs/ticket/card.php` |
 | Intent categories for tickets | Ticket words still map to `thirdparty` / `project` | `htdocs/ai/assistant/parse_intent.php`, `classifyIntentUniversal()` |
 | Ticket statuses | `Ticket::STATUS_CLOSED` (8) and `STATUS_CANCELED` (9) still mean "not open" | `htdocs/ticket/class/ticket.class.php` |
 | Ticket columns | `fk_user_assign`, `fk_statut`, `severity_code`, `datec`, `date_last_msg_sent` still exist | `htdocs/install/mysql/tables/llx_ticket-ticket.sql` |
@@ -88,7 +91,8 @@ and offer it upstream as a pull request. That is far cheaper than maintaining a 
 
 **A new AI tool**
 
-Add a definition to `ToolInfomaticalTickets::getDefinitions()` and a `case` in `execute()`, or create a
+Add a definition to `ToolInfomaticalTickets::getDefinitions()` (reads) or `ToolInfomaticalTicketWrites::getDefinitions()`
+(writes) and a `case` in `execute()`, or create a
 new `McpTool` subclass and append it to the array returned by `addMcpTools()`. Tool names must start
 with `infomatical_` to avoid clashes with core tools. Any tool that writes data must implement
 `writeConfirmationPreview()` (and `writePrecheck()` where useful) so the user approves the change first.

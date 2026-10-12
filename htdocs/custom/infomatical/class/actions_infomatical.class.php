@@ -68,10 +68,14 @@ class ActionsInfomatical extends CommonHookActions
 			return 0;
 		}
 		dol_include_once('/infomatical/class/toolinfomaticaltickets.class.php');
+		dol_include_once('/infomatical/class/toolinfomaticalticketwrites.class.php');
 
 		// One array of tools per module: HookManager merges results of all modules into resArray
 		$this->results = array(
-			array(new ToolInfomaticalTickets($parameters['db'], $parameters['user'], $parameters['conf'])),
+			array(
+				new ToolInfomaticalTickets($parameters['db'], $parameters['user'], $parameters['conf']),
+				new ToolInfomaticalTicketWrites($parameters['db'], $parameters['user'], $parameters['conf']),
+			),
 		);
 		return 0;
 	}
