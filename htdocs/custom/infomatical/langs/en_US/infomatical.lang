@@ -1,0 +1,11 @@
+# Infomatical - en_US (Dolibarr's fallback language; British spelling is used deliberately)
+ModuleInfomaticalName = Infomatical
+ModuleInfomaticalDesc = Infomatical enhancements to the Ticket module (technician queue, AI ticket tools)
+InfomaticalMyQueue = My ticket queue
+InfomaticalMyQueueHelp = Open tickets assigned to you or on which you are an internal Ticket manager contact, most severe first, then oldest first.
+InfomaticalAge = Age
+InfomaticalLastMessageSent = Last message sent
+InfomaticalRole = My role
+InfomaticalRoleAssigned = Assigned
+InfomaticalRoleContact = Ticket manager contact
+InfomaticalNothingOpen = No open tickets in your queue.
