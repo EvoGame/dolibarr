@@ -320,9 +320,9 @@ class ToolInfomaticalTicketWrites extends McpTool
 		} else {
 			$this->db->begin();
 			$result = $ticket->setStatut($status, null, '', 'TICKET_MODIFY');
-			if ($result > 0) {
-				// Trigger already run by setStatut()
-				$result = $ticket->setReadDate($this->user, 1);
+			// Trigger already run by setStatut(). setReadDate() returns 0 when the ticket was already read.
+			if ($result > 0 && $ticket->setReadDate($this->user, 1) < 0) {
+				$result = -1;
 			}
 			if ($result < 0) {
 				$this->db->rollback();
