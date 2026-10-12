@@ -1,13 +1,12 @@
 # Infomatical module: maintenance guide
 
-**Internal use only. Not for distribution outside the company.**
+For maintainers. See [README.md](README.md) for what the module does.
 
 ## Where the code lives
 
 The module is kept in our Dolibarr fork at `htdocs/custom/infomatical/`. Upstream ignores everything
-in `htdocs/custom/`, and the root `.gitignore` ignores every `.htaccess`. Our fork re-includes the module
-with two lines in `htdocs/custom/.gitignore`: `!/infomatical/` and `!/infomatical/docs/.htaccess`.
-If an upstream merge ever conflicts on that file, keep both lines.
+in `htdocs/custom/`; our fork re-includes this one directory with the line `!/infomatical/` in
+`htdocs/custom/.gitignore`. If an upstream merge ever conflicts on that file, keep that line.
 
 ## Deployment
 
@@ -29,18 +28,6 @@ If the AI module's tool allow-list has been configured (**Home → Setup → Mod
 `AI_ASSISTANT_ALLOWED_TOOLS` and `AI_MCP_SERVER_ALLOWED_TOOLS`), new tools are **not** allowed
 automatically. Tick `infomatical_my_open_tickets` there after enabling the module. While the list has
 never been configured, all tools are allowed.
-
-### Web exposure
-
-Everything under `htdocs/` can be served by the web server. `docs/.htaccess` (`Require all denied`)
-blocks these documents on Apache with `AllowOverride` enabled. On nginx, or with `AllowOverride None`,
-add an equivalent rule, for example:
-
-```nginx
-location ~ ^/custom/infomatical/docs/ { deny all; }
-```
-
-Check with `curl -I https://<dolibarr>/custom/infomatical/docs/README.md`: it must return `403`.
 
 ## Module identity
 

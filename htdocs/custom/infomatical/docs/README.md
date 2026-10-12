@@ -1,11 +1,8 @@
-# Infomatical module: internal documentation
+# Infomatical module: maintainer documentation
 
-**Internal use only. Not for distribution outside the company.**
-
-The module source lives in a public GitHub repository, so this text must never contain credentials,
-internal hostnames, customer data or anything else that would be a problem if read by outsiders.
-On a server, `docs/.htaccess` stops Apache from serving these files; see
-[maintenance.md](maintenance.md#web-exposure) for other web servers.
+Infomatical is written for our own use. The source is public, but we do not market, package or support it
+for anyone else. Because the repository is public, never put credentials, internal hostnames or customer
+data in these documents.
 
 | Document | Contents |
 |---|---|
@@ -79,5 +76,5 @@ infomatical/
 ├── langs/en_US/infomatical.lang            Translations
 ├── myqueue.php                             Technician dashboard
 ├── README.md                               Short public description, shown on the module page
-└── docs/                                   This documentation (internal)
+└── docs/                                   This documentation
 ```
