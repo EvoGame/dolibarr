@@ -30,10 +30,10 @@ jobs:
       REVIEWER: "eldy"
 
 
-    # Do not run schedule on forks
-    if: |
-      github.repository == 'Dolibarr/dolibarr'
-      || github.event.schedule == false
+    # Upstream only: it needs upstream's GitHub App (vars.PR18_APP_ID / secrets.PR18_SECRET_KEY).
+    # Fork change: the former "|| github.event.schedule == false" let it run here, because the
+    # workflow has no schedule trigger, so schedule is null and null == false is true in expressions.
+    if: github.repository == 'Dolibarr/dolibarr'
     steps:
       # 1) Generate a GitHub App token (via actions/create-github-app-token)
       - name: Generate GitHub App token

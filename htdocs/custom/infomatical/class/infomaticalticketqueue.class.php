@@ -23,6 +23,7 @@
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/security.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/ticket/class/ticket.class.php';
+dol_include_once('/infomatical/lib/infomatical.lib.php');
 
 /**
  * Read-only queue of open tickets for one internal user.
@@ -110,7 +111,7 @@ class InfomaticalTicketQueue
 		$this->db->free($resql);
 
 		// Drop the tickets the card would refuse (e.g. customers of other sales representatives)
-		foreach (getObjectIdsRefusedToUser($user, $ticketstatic, array_keys($objs)) as $refusedid) {
+		foreach (infomaticalTicketIdsRefusedToUser($user, array_keys($objs)) as $refusedid) {
 			unset($objs[$refusedid]);
 		}
 

@@ -23,6 +23,7 @@
 
 require_once DOL_DOCUMENT_ROOT.'/ai/class/mcptool.class.php';
 dol_include_once('/infomatical/class/infomaticalticketqueue.class.php');
+dol_include_once('/infomatical/lib/infomatical.lib.php');
 
 /**
  * Ticket tools for the AI assistant and the MCP server.
@@ -84,6 +85,11 @@ class ToolInfomaticalTickets extends McpTool
 	 */
 	public function execute(string $toolName, array $args)
 	{
+		$missing = infomaticalAiMissingRight($this->user, $this->getRequiredRights($toolName));
+		if ($missing !== '') {
+			return array('error' => "Permission denied: this tool needs the right '".$missing."'.");
+		}
+
 		switch ($toolName) {
 			case 'infomatical_my_open_tickets':
 				$queue = new InfomaticalTicketQueue($this->db);

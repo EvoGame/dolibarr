@@ -23,6 +23,7 @@
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/security.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/ticket/class/ticket.class.php';
+dol_include_once('/infomatical/lib/infomatical.lib.php');
 
 /**
  * Day plans. Days are 'YYYY-MM-DD' strings in the user's calendar, so no timezone conversion
@@ -99,7 +100,7 @@ class InfomaticalTicketPlan
 		}
 		$this->db->free($resql);
 
-		$refused = getObjectIdsRefusedToUser($user, new Ticket($this->db), array_keys($objs));
+		$refused = infomaticalTicketIdsRefusedToUser($user, array_keys($objs));
 
 		$rows = array();
 		foreach ($objs as $id => $obj) {
@@ -205,7 +206,7 @@ class InfomaticalTicketPlan
 		}
 		$this->db->free($resql);
 
-		return array('day' => $lastday, 'ticketids' => array_values(array_diff($ticketids, getObjectIdsRefusedToUser($user, new Ticket($this->db), $ticketids))));
+		return array('day' => $lastday, 'ticketids' => array_values(array_diff($ticketids, infomaticalTicketIdsRefusedToUser($user, $ticketids))));
 	}
 
 	/**

@@ -23,13 +23,21 @@
 
 require_once DOL_DOCUMENT_ROOT.'/ai/class/mcptool.class.php';
 require_once DOL_DOCUMENT_ROOT.'/ticket/class/ticket.class.php';
+dol_include_once('/infomatical/lib/infomatical.lib.php');
 
 /**
  * Ticket write tools. Every tool returns a preview from writeConfirmationPreview(), so McpHandler
  * asks the user to approve each change before execute() runs.
+ *
+ * Only registered where the AI module runs that confirmation (Dolibarr 25 and later): see
+ * infomaticalAiConfirmsWrites().
  */
 class ToolInfomaticalTicketWrites extends McpTool
 {
+	/** Same values as McpTool on Dolibarr 25; Dolibarr 24's McpTool does not declare them */
+	const RIGHTS_UNDECLARED = 'undeclared';
+	const NO_WRITE = '';
+
 	/** Status names accepted by infomatical_ticket_set_status => Ticket status */
 	const STATUSES = array(
 		'read' => Ticket::STATUS_READ,
@@ -260,6 +268,10 @@ class ToolInfomaticalTicketWrites extends McpTool
 	 */
 	public function execute(string $toolName, array $args)
 	{
+		$missing = infomaticalAiMissingRight($this->user, $this->getRequiredRights($toolName));
+		if ($missing !== '') {
+			return array('error' => "Permission denied: this tool needs the right '".$missing."'. Nothing was written.");
+		}
 		// Same checks as before the confirmation: the ticket may have changed in between
 		$refused = $this->writePrecheck($toolName, $args);
 		if ($refused !== '') {

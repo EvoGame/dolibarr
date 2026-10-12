@@ -87,8 +87,10 @@ done
 	# shellcheck disable=2086
 	# With std grep: `grep --no-filename -r ${GREP_OPTS} -- '->trans(' . `
 	# Using git grep avoiding to look into unversioned files
+	# htdocs/custom/ is skipped: it is git-ignored upstream, and the modules tracked there by a fork (e.g.
+	# Infomatical) declare their keys in their own langs/ directory, not in htdocs/langs/.
 	# transnoentitiesnoconv
-	git grep -h -r -P -- "${MATCH_STR}\\(" ':*.php' ':*.html' ':*.js' \
+	git grep -h -r -P -- "${MATCH_STR}\\(" ':*.php' ':*.html' ':*.js' ':!htdocs/custom/' \
 		| sed 's@\(^#\|[^:]//\|/\*\|^\s*\*\).*@@' \
 	| sed 's@)\|\(['"'"'"]\)\(,\)@\1\n@g' \
 		| grep -aPo "$EXTRACT_STR(?=.$)"
@@ -162,7 +164,7 @@ if [ -s "${MISSING_FILE}.grep" ] ; then
 
 	echo "##[group]List missing translations (used by code but not found into lang files) - Generate CTI errors"
 
-	git grep -n --column -r -F -f "${MISSING_FILE}.grep" -- ':*.php' ':*.html' ':*.js' \
+	git grep -n --column -r -F -f "${MISSING_FILE}.grep" -- ':*.php' ':*.html' ':*.js' ':!htdocs/custom/' \
 		| sort -t: -k 4 \
 		| sed 's@^\([^:]*:[^:]*:[^:]*:\)\s*@\1 error - Missing translation; @' > "${MISSING_FILE}.result"
 

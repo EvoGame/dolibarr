@@ -151,7 +151,12 @@ if (!isModEnabled('ai')) {
 		'mcp' => McpHandler::resolveAllowList(getDolGlobalString('AI_MCP_SERVER_ALLOWED_TOOLS'), $toolnames),
 	);
 
+	$writesavailable = infomaticalAiConfirmsWrites();
+
 	print '<div class="opacitymedium marginbottomonly">'.$langs->trans('InfomaticalAiToolsHelp').'</div>';
+	if (!$writesavailable) {
+		print '<div class="warning">'.$langs->trans('InfomaticalAiWritesUnavailable').'</div>';
+	}
 	print '<div class="div-table-responsive-no-min">';
 	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre">';
@@ -169,6 +174,10 @@ if (!isModEnabled('ai')) {
 		}
 		print '</td>';
 		foreach (array('assistant', 'mcp') as $context) {
+			if ($writes && !$writesavailable) {
+				print '<td class="center">'.dolGetBadge($langs->trans('InfomaticalNotAvailable'), '', 'status5').'</td>';
+				continue;
+			}
 			$ok = in_array($name, $allowed[$context], true);
 			print '<td class="center">'.dolGetBadge($langs->trans($ok ? 'InfomaticalAllowed' : 'InfomaticalNotAllowed'), '', $ok ? 'status4' : 'status8').'</td>';
 		}
