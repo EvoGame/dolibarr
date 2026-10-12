@@ -1,0 +1,66 @@
+# Infomatical - en_US (reference language: Dolibarr falls back to this file for missing keys)
+ModuleInfomaticalName = Infomatical
+ModuleInfomaticalDesc = Infomatical enhancements to the Ticket module (day planning, technician queue, AI ticket tools)
+
+# My ticket queue
+InfomaticalMyQueue = My ticket queue
+InfomaticalMyQueueHelp = Open tickets assigned to you or on which you are an internal Ticket manager contact, most severe first, then oldest first.
+InfomaticalAge = Age
+InfomaticalLastMessageSent = Last message sent
+InfomaticalRole = My role
+InfomaticalRoleAssigned = Assigned
+InfomaticalRoleContact = Ticket manager contact
+InfomaticalNothingOpen = No open tickets in your queue.
+
+# Day planning
+InfomaticalPlanMyDay = Plan my day
+InfomaticalPlanSummary = %s tickets planned, %s against a workday of %s
+InfomaticalPlanDone = %s done, %s of open work left
+InfomaticalPlanFreeTime = %s still free
+InfomaticalPlanOverbooked = Overbooked by %s
+InfomaticalPlanned = Planned
+InfomaticalPlanEmpty = Nothing planned for this day yet. Add tickets from your queue below.
+InfomaticalEstimateAndNote = Estimate and note
+InfomaticalMinutes = Estimated time, in minutes
+InfomaticalMinutesShort = min
+InfomaticalMoveUp = Move up
+InfomaticalMoveDown = Move down
+InfomaticalRemoveFromPlan = Remove from this day's plan
+InfomaticalCarryOver = Carry over unfinished tickets from %s (%s)
+InfomaticalNotPlanned = In my queue, not planned for this day
+InfomaticalNothingToPlan = Every ticket in your queue is planned for this day.
+InfomaticalLastPlanned = Last planned
+InfomaticalAddToPlan = Add to plan
+InfomaticalErrorNotInQueue = This ticket is not in your queue, so it cannot be added to your plan.
+
+# AI write confirmations (shown to the user before a change is applied)
+InfomaticalPreviewAssign = Assign ticket %s to %s.
+InfomaticalPreviewUnassign = Remove the assignee of ticket %s.
+InfomaticalPreviewSetStatus = Change the status of ticket %s from "%s" to "%s".
+InfomaticalPreviewUpdate = Update ticket %s: %s.
+InfomaticalPreviewAddNote = Add a private note to ticket %s: "%s"
+
+# Module setup
+InfomaticalSetup = Infomatical setup
+InfomaticalWorkdayLength = Length of a workday
+InfomaticalWorkdayLengthHelp = Each technician's day plan is measured against this. Above it, the plan shows as overbooked.
+InfomaticalDefaultEstimate = Default estimate for a ticket
+InfomaticalDefaultEstimateHelp = Pre-filled when a ticket is added to a day plan. Technicians can change it per ticket.
+InfomaticalErrorWorkdayLength = The workday must be between 0h15 and 24h00.
+InfomaticalErrorDefaultEstimate = The default estimate must be between 0h00 and 24h00.
+InfomaticalAiTools = AI tools
+InfomaticalAiModuleDisabled = The AI module is not enabled, so these tools are not available. Enable the AI module to use them.
+InfomaticalAiToolsHelp = Tools this module adds to the AI assistant and the MCP server. Once an allow-list has been saved in the AI module, new tools stay blocked until they are ticked there.
+InfomaticalAiTool = Tool
+InfomaticalToolDesc_infomatical_my_open_tickets = Lists the user's open tickets, most urgent first
+InfomaticalToolDesc_infomatical_ticket_assign = Assigns a ticket to a user, or removes its assignee
+InfomaticalToolDesc_infomatical_ticket_set_status = Changes the status of an open ticket, including closing it
+InfomaticalToolDesc_infomatical_ticket_update = Changes the severity or progress of an open ticket
+InfomaticalToolDesc_infomatical_ticket_add_note = Adds a private note to a ticket, never sent to the customer
+InfomaticalToolConfirmed = changes data, asks the user to confirm first
+InfomaticalAllowed = Allowed
+InfomaticalNotAllowed = Blocked
+InfomaticalModuleNumber = Module number
+InfomaticalDocumentation = Documentation
+InfomaticalDocumentationHelp = Maintenance and architecture notes are in the module's docs/ directory (htdocs/custom/infomatical/docs/ in the source repository).
+InfomaticalSupportNotice = Infomatical is developed for our own use. The source is public, but it is not marketed or supported for anyone else.
