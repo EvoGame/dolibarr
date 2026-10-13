@@ -35,12 +35,35 @@ Each technician plans their own days. Nobody can see or change another person's 
   tickets stay in the list with their status, as a record of what was done.
 - **Summary.** Number of tickets, total estimate against the working day, tickets done, open work left,
   and either the free time or an *overbooked* warning. A tooltip says where the working day came from.
-- **Working day per technician.** Taken from the *Weekly hours* on the user's card (HRM section,
-  `llx_user.weeklyhours`), divided by the number of working days in the week. The working days follow
-  core's non-working-day settings (`MAIN_NON_WORKING_DAYS_INCLUDE_*`, set up in the Leave module; Saturday
-  and Sunday off by default), so 37.5 weekly hours over 5 days gives 7h30. When the user has no weekly
-  hours, or they give a day outside 0h15-24h00, `INFOMATICAL_WORKDAY_MINUTES` is used instead. See
-  `InfomaticalTicketPlan::getWorkday()`. Public holidays and leave are not deducted.
+- **Working day per technician.** See `InfomaticalTicketPlan::getWorkday()`. In order:
+  1. **Public holiday.** If the day is a public holiday for the company's country (dictionary
+     *Public holidays*, `llx_c_hrm_public_holiday`), the business is closed: the day has no working time,
+     whatever the person's own working days. A warning says so.
+  2. **Day off.** If the weekday is not one of the person's working days, the day has no working time.
+     Their working days are the *Working days* field on their user card (extrafield
+     `infomatical_workdays`, ISO weekdays 1 = Monday to 7 = Sunday). When that is empty, the days the
+     business is open are used: core's `MAIN_NON_WORKING_DAYS_INCLUDE_*` (Leave module setup; Saturday and
+     Sunday closed by default).
+  3. **Length.** The *Weekly hours* on the user card (HRM section, `llx_user.weeklyhours`) divided by the
+     number of working days from step 2: 37.5 hours over 5 days gives 7h30, 36 hours over Monday to
+     Thursday gives 9h00. When the user has no weekly hours, or they give a day outside 0h15-24h00,
+     `INFOMATICAL_WORKDAY_MINUTES` is used instead.
+
+  A tooltip on the summary says where the length and the working days came from. Hours are spread evenly
+  over the working days; there is no per-day length. Approved leave is not deducted.
+- **Working days on days the business is closed.** Adding a day the business is normally closed (for
+  someone who does paperwork on Sundays, say) to a person's *Working days* needs authorisation: an
+  administrator, anyone above the person in the hierarchy (*Supervisor* on the user card, at any level), or
+  a user with the module permission *Authorise working days on days the business is normally closed*.
+  - On the user form, ticking such a day asks for confirmation; for someone who cannot authorise it, it
+    says so and the day is not ticked. This is only a convenience (`ActionsInfomatical::formObjectOptions()`,
+    context `usercard`).
+  - The rule is enforced by the trigger on `USER_CREATE` and `USER_MODIFY`, which refuses the save. Only
+    days added by the change are checked, so a day authorised earlier survives later edits by anyone.
+    Authorised additions are logged (syslog, `LOG_NOTICE`).
+  - On `USER_MODIFY` the earlier days come from `$object->oldcopy`, which the user card sets. Callers that
+    do not set it, such as the REST API, are not checked. Imports write to the database directly and are
+    not checked either. Both already need the right to edit users.
 - **Not planned for this day.** The rest of the user's queue (the same tickets as *My ticket queue*), each
   with an *Add* button and a *Last planned* link to the most recent earlier day it was on. Only tickets
   in the user's own queue can be added. The server checks this; it does not rely on the form.
@@ -159,11 +182,18 @@ Deliberate differences from the ticket card:
 |---|---|---|
 | Left menu entries under `mainmenu=ticket` | `modInfomatical::$menu` | `plan.php`, `myqueue.php` |
 | Trigger `TICKET_DELETE` | `modInfomatical::$module_parts['triggers']` | `InterfaceInfomaticalTriggers` |
+| Triggers `USER_CREATE`, `USER_MODIFY` (working days on closed days) | `modInfomatical::$module_parts['triggers']` | `InterfaceInfomaticalTriggers::checkClosedWorkdays()` |
+| Hook context `usercard`, method `formObjectOptions` | `modInfomatical::$module_parts['hooks']` | `ActionsInfomatical::formObjectOptions()` |
+| User extrafield `infomatical_workdays` | created by `modInfomatical::init()`, kept on disable | read by `infomaticalUserWorkdays()` |
+| Permission `closedworkdays` (id 59100001) | `modInfomatical::$rights` | `infomaticalCanAuthoriseClosedDays()` |
 | Table `llx_infomatical_ticketplan` | `sql/`, loaded by `modInfomatical::init()` | `InfomaticalTicketPlan` |
 | Settings | `modInfomatical::$const`, page `modInfomatical::$config_page_url` | `admin/setup.php`, read in `plan.php` |
 | Hook context `aimcp`, method `addMcpTools` | `modInfomatical::$module_parts['hooks']` | `ActionsInfomatical::addMcpTools()` |
 | AI tool classes (extend core `McpTool`) | registered by the hook | `ToolInfomaticalTickets` (read), `ToolInfomaticalTicketWrites` (write) |
 | Shared query | none | `InfomaticalTicketQueue::fetchOpenForUser()` |
+
+After upgrading from 0.3.x, disable and re-enable the module once: that creates the extrafield, the
+permission and the `usercard` hook registration.
 
 The dashboard and the AI tool share `InfomaticalTicketQueue`, so "my queue" means the same thing in
 both places. Change the rule there, not in either caller.
@@ -177,7 +207,7 @@ added. New storage should follow the day plan's lead: an `llx_infomatical_*` tab
 ```
 infomatical/
 ├── core/modules/modInfomatical.class.php   Module descriptor (id, menus, hooks, dependencies)
-├── core/triggers/interface_99_modInfomatical_InfomaticalTriggers.class.php  Cleans plans of deleted tickets
+├── core/triggers/interface_99_modInfomatical_InfomaticalTriggers.class.php  Cleans plans of deleted tickets; checks working days on closed days
 ├── class/actions_infomatical.class.php     Hook implementations
 ├── class/infomaticalticketplan.class.php   Day plans (llx_infomatical_ticketplan)
 ├── class/infomaticalticketqueue.class.php  Shared "my open tickets" query
@@ -185,7 +215,7 @@ infomatical/
 ├── class/toolinfomaticalticketwrites.class.php  AI / MCP write tools
 ├── admin/setup.php                         Settings tab: durations, AI tool status
 ├── admin/about.php                         About tab
-├── lib/infomatical.lib.php                 Tabs of the setup pages; Dolibarr 24/25 compatibility helpers
+├── lib/infomatical.lib.php                 Tabs of the setup pages; Dolibarr 24/25 compatibility helpers; working days
 ├── langs/en_US/infomatical.lang            Translations, US English (reference and fallback)
 ├── langs/en_GB/infomatical.lang            Translations, British English (complete)
 ├── sql/llx_infomatical_ticketplan*.sql     Day-plan table and indexes

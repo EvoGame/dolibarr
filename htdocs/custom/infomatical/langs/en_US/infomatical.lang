@@ -21,6 +21,11 @@ InfomaticalPlanOverbooked = Overbooked by %s
 InfomaticalWorkdayFromUser = Your workday: %s weekly hours from your user card, over %s working days.
 InfomaticalWorkdayFromGlobal = The company's default workday. To use your own, ask for your weekly hours to be set on your user card.
 InfomaticalWorkdayUserOutOfRange = The company's default workday, because the %s weekly hours on your user card do not give a workday between 0h15 and 24h00.
+InfomaticalWorkdaysFromUser = Your working days, from your user card: %s.
+InfomaticalWorkdaysFromBusiness = The days the business is open: %s. Your own working days can be set on your user card.
+InfomaticalPlanPublicHoliday = The business is closed for a public holiday, so there is no working time on this day, whatever your usual working days.
+InfomaticalPlanNotYourWorkingDay = %s is not one of your working days, so there is no working time on this day.
+InfomaticalPlanBusinessClosedDay = The business is normally closed on %s, so there is no working time on this day.
 InfomaticalPlanned = Planned
 InfomaticalPlanEmpty = Nothing planned for this day yet. Add tickets from your queue below.
 InfomaticalEstimateAndNote = Estimate and note
@@ -69,3 +74,10 @@ InfomaticalModuleNumber = Module number
 InfomaticalDocumentation = Documentation
 InfomaticalDocumentationHelp = Maintenance and architecture notes are in the module's docs/ directory (htdocs/custom/infomatical/docs/ in the source repository).
 InfomaticalSupportNotice = Infomatical is developed for our own use. The source is public, but it is not marketed or supported for anyone else.
+
+# Working days on the user card
+InfomaticalWorkingDays = Working days
+InfomaticalWorkingDaysHelp = The days this person works, used to plan their day: their weekly hours are spread over these days. Leave empty to use the days the business is open. Days the business is normally closed can only be added by an administrator, the person's supervisor, or a user with the permission to authorize it.
+InfomaticalConfirmClosedWorkday = The business is normally closed on %s. Make it one of this person's working days anyway?
+InfomaticalErrorClosedWorkdays = The business is normally closed on %s. Only an administrator, the person's supervisor, or a user with the permission to authorize it can add it to someone's working days.
+Permission59100001 = Authorize working days on days the business is normally closed

@@ -59,8 +59,10 @@ class modInfomatical extends DolibarrModules
 			// core/triggers: cleans day plans on TICKET_DELETE
 			'triggers' => 1,
 			// 'aimcp': addMcpTools hook of the AI module (htdocs/ai/class/mcp.class.php)
+			// 'usercard': asks before a working day is set on a day the business is closed
 			'hooks' => array(
 				'aimcp',
+				'usercard',
 			),
 			'moduleforexternal' => 0,
 		);
@@ -94,6 +96,11 @@ class modInfomatical extends DolibarrModules
 		$this->boxes = array();
 		$this->cronjobs = array();
 		$this->rights = array();
+		$this->rights[0][0] = $this->numero * 100 + 1;
+		$this->rights[0][1] = 'Authorise working days on days the business is normally closed';
+		$this->rights[0][3] = 0;
+		$this->rights[0][4] = 'closedworkdays';
+		$this->rights[0][5] = '';
 
 		// Menus
 		$this->menu = array();
@@ -139,6 +146,16 @@ class modInfomatical extends DolibarrModules
 		// _load_tables() returns 0, not a negative value, when an SQL file fails
 		$result = $this->_load_tables('/infomatical/sql/');
 		if ($result <= 0) {
+			return -1;
+		}
+
+		// Days the person works, on the user card. Kept when the module is disabled, like the constants.
+		include_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+		$extrafields = new ExtraFields($this->db);
+		$weekdays = array('1' => 'Monday', '2' => 'Tuesday', '3' => 'Wednesday', '4' => 'Thursday', '5' => 'Friday', '6' => 'Saturday', '7' => 'Sunday');
+		$result = $extrafields->addExtraField('infomatical_workdays', 'InfomaticalWorkingDays', 'checkbox', 100, '', 'user', 0, 0, '', array('options' => $weekdays), 1, '', '1', 'InfomaticalWorkingDaysHelp', '', '', 'infomatical@infomatical', 'isModEnabled("infomatical")');
+		if ($result < 0) {
+			$this->error = $extrafields->error;
 			return -1;
 		}
 

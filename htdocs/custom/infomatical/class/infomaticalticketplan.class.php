@@ -22,6 +22,7 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/security.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/ticket/class/ticket.class.php';
 dol_include_once('/infomatical/lib/infomatical.lib.php');
 
@@ -57,39 +58,49 @@ class InfomaticalTicketPlan
 	}
 
 	/**
-	 * Length of the user's working day, in minutes, and where it came from.
+	 * Length of the user's working day on a given day, in minutes, and where it came from.
 	 *
-	 * Taken from the weekly hours on the user's card (HRM section, llx_user.weeklyhours), spread over the
-	 * company's working days (Saturday and Sunday off unless MAIN_NON_WORKING_DAYS_INCLUDE_* says otherwise).
-	 * Falls back to INFOMATICAL_WORKDAY_MINUTES when the user has no weekly hours, or when they give a day
-	 * outside 0h15-24h00, the same range the setup page accepts.
+	 * - A public holiday (Home > Setup > Dictionaries > Public holidays, for the company's country) closes the
+	 *   business, so the day is 0 whatever the user's own working days say. Status 'publicholiday'.
+	 * - A weekday the user does not work is 0. Their working days are the field on their user card; when it is
+	 *   empty, the days the business is open (MAIN_NON_WORKING_DAYS_INCLUDE_*). Status 'dayoff'.
+	 * - Otherwise the weekly hours on the user card (HRM section, llx_user.weeklyhours) divided by the number
+	 *   of those working days. INFOMATICAL_WORKDAY_MINUTES is used instead when the user has no weekly hours,
+	 *   or when they give a day outside 0h15-24h00, the same range the setup page accepts. Status 'working'.
 	 *
-	 * @param User $user User whose day is planned
-	 * @return array{minutes:int,source:string,weeklyhours:float,days:int} source is 'user' or 'global'
+	 * @param User   $user User whose day is planned
+	 * @param string $day  Day, 'YYYY-MM-DD'
+	 * @return array{minutes:int,status:string,source:string,weeklyhours:float,days:int,userdays:bool}
+	 *         source is 'user' (weekly hours) or 'global'; userdays tells whether the user card gave the days
 	 */
-	public static function getWorkday($user)
+	public static function getWorkday($user, $day)
 	{
-		$days = 7;
-		foreach (array('MONDAY' => 0, 'FRIDAY' => 0, 'SATURDAY' => 1, 'SUNDAY' => 1) as $weekday => $default) {
-			if (getDolGlobalInt('MAIN_NON_WORKING_DAYS_INCLUDE_'.$weekday, $default)) {
-				$days--;
-			}
-		}
+		$userdays = infomaticalUserWorkdays($user);
+		$workdays = $userdays ? $userdays : array_values(array_diff(range(1, 7), infomaticalClosedWeekdays()));
+		$days = count($workdays);
 
 		$weeklyhours = (float) $user->weeklyhours;
+		$minutes = getDolGlobalInt('INFOMATICAL_WORKDAY_MINUTES', self::DEFAULT_WORKDAY_MINUTES);
+		$source = 'global';
 		if ($weeklyhours > 0 && $days > 0) {
-			$minutes = (int) round($weeklyhours * 60 / $days);
-			if ($minutes >= 15 && $minutes <= 24 * 60) {
-				return array('minutes' => $minutes, 'source' => 'user', 'weeklyhours' => $weeklyhours, 'days' => $days);
+			$userminutes = (int) round($weeklyhours * 60 / $days);
+			if ($userminutes >= 15 && $userminutes <= 24 * 60) {
+				$minutes = $userminutes;
+				$source = 'user';
 			}
 		}
+		$result = array('minutes' => $minutes, 'status' => 'working', 'source' => $source, 'weeklyhours' => $weeklyhours, 'days' => $days, 'userdays' => !empty($userdays));
 
-		return array(
-			'minutes' => getDolGlobalInt('INFOMATICAL_WORKDAY_MINUTES', self::DEFAULT_WORKDAY_MINUTES),
-			'source' => 'global',
-			'weeklyhours' => $weeklyhours,
-			'days' => $days,
-		);
+		$time = dol_mktime(0, 0, 0, (int) substr($day, 5, 2), (int) substr($day, 8, 2), (int) substr($day, 0, 4), 'gmt');
+		if ($time && num_public_holiday($time, $time, '', 1, 0, 0, 0, 0) > 0) {
+			$result['minutes'] = 0;
+			$result['status'] = 'publicholiday';
+		} elseif (!in_array((int) gmdate('N', (int) $time), $workdays)) {
+			$result['minutes'] = 0;
+			$result['status'] = 'dayoff';
+		}
+
+		return $result;
 	}
 
 	/**
