@@ -184,8 +184,21 @@ function infomaticalUserWorkdays($user)
 }
 
 /**
+ * How days the business is normally closed are handled when added to someone's working days
+ * (constant INFOMATICAL_CLOSEDDAY_POLICY): 'authorise' (default) refuses the change unless the editor may
+ * authorise it, 'confirm' only asks the editor to confirm on the user form.
+ *
+ * @return string 'authorise' or 'confirm'
+ */
+function infomaticalClosedDayPolicy()
+{
+	return getDolGlobalString('INFOMATICAL_CLOSEDDAY_POLICY', 'authorise') == 'confirm' ? 'confirm' : 'authorise';
+}
+
+/**
  * Whether a user may give another user working days on which the business is normally closed:
- * administrators, holders of the module permission, and anyone above the person in the hierarchy.
+ * administrators, holders of the module permission, and anyone above the person in the hierarchy unless
+ * INFOMATICAL_CLOSEDDAY_SUPERVISORS is off.
  *
  * @param User $editor   User making the change
  * @param int  $targetid User whose working days change
@@ -195,6 +208,10 @@ function infomaticalCanAuthoriseClosedDays(User $editor, $targetid)
 {
 	if (!empty($editor->admin) || $editor->hasRight('infomatical', 'closedworkdays')) {
 		return true;
+	}
+
+	if (!getDolGlobalInt('INFOMATICAL_CLOSEDDAY_SUPERVISORS', 1)) {
+		return false;
 	}
 
 	return $targetid > 0 && $targetid != $editor->id && in_array($targetid, $editor->getAllChildIds());
@@ -216,4 +233,15 @@ function infomaticalWeekdayNames(array $weekdays, $langs)
 	}
 
 	return implode(', ', $out);
+}
+
+/**
+ * Translation key of the message refusing a day the business is normally closed, which names who may
+ * authorise it.
+ *
+ * @return string
+ */
+function infomaticalClosedDayRefusal()
+{
+	return getDolGlobalInt('INFOMATICAL_CLOSEDDAY_SUPERVISORS', 1) ? 'InfomaticalErrorClosedWorkdays' : 'InfomaticalErrorClosedWorkdaysNoSupervisor';
 }

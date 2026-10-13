@@ -38,7 +38,8 @@ Each technician plans their own days. Nobody can see or change another person's 
 - **Working day per technician.** See `InfomaticalTicketPlan::getWorkday()`. In order:
   1. **Public holiday.** If the day is a public holiday for the company's country (dictionary
      *Public holidays*, `llx_c_hrm_public_holiday`), the business is closed: the day has no working time,
-     whatever the person's own working days. A warning says so.
+     whatever the person's own working days. A warning says so. Turn off *Public holidays close the
+     business* (`INFOMATICAL_PUBLIC_HOLIDAYS_CLOSE`) for a business that works on public holidays.
   2. **Day off.** If the weekday is not one of the person's working days, the day has no working time.
      Their working days are the *Working days* field on their user card (extrafield
      `infomatical_workdays`, ISO weekdays 1 = Monday to 7 = Sunday). When that is empty, the days the
@@ -51,10 +52,12 @@ Each technician plans their own days. Nobody can see or change another person's 
 
   A tooltip on the summary says where the length and the working days came from. Hours are spread evenly
   over the working days; there is no per-day length. Approved leave is not deducted.
-- **Working days on days the business is closed.** Adding a day the business is normally closed (for
-  someone who does paperwork on Sundays, say) to a person's *Working days* needs authorisation: an
-  administrator, anyone above the person in the hierarchy (*Supervisor* on the user card, at any level), or
-  a user with the module permission *Authorise working days on days the business is normally closed*.
+- **Working days on days the business is closed.** By default (`INFOMATICAL_CLOSEDDAY_POLICY` =
+  `authorise`), adding a day the business is normally closed (for someone who does paperwork on Sundays,
+  say) to a person's *Working days* needs authorisation: an administrator, anyone above the person in the
+  hierarchy (*Supervisor* on the user card, at any level; off when `INFOMATICAL_CLOSEDDAY_SUPERVISORS` is
+  0), or a user with the module permission *Authorise working days on days the business is normally
+  closed*. With the policy set to `confirm`, anyone who may edit the user can add it after confirming.
   - On the user form, ticking such a day asks for confirmation; for someone who cannot authorise it, it
     says so and the day is not ticked. This is only a convenience (`ActionsInfomatical::formObjectOptions()`,
     context `usercard`).
@@ -78,6 +81,9 @@ values are created when the module is enabled and kept when it is disabled:
 |---|---|---|
 | `INFOMATICAL_WORKDAY_MINUTES` | `450` (7h30) | Working day for users with no weekly hours on their card |
 | `INFOMATICAL_DEFAULT_PLAN_MINUTES` | `60` | Estimate given to a ticket when it is added |
+| `INFOMATICAL_PUBLIC_HOLIDAYS_CLOSE` | `1` | Public holidays have no working time, whatever the person's working days |
+| `INFOMATICAL_CLOSEDDAY_POLICY` | `authorise` | Closed days added to someone's working days: `authorise` (refused unless authorised) or `confirm` (confirmation only) |
+| `INFOMATICAL_CLOSEDDAY_SUPERVISORS` | `1` | Supervisors may authorise closed days, as well as admins and holders of the permission |
 
 Storage is the table `llx_infomatical_ticketplan`: one row per ticket per technician per day, unique on
 `(entity, fk_user, date_plan, fk_ticket)`. The row holds the order (`rang`), the estimate in minutes
@@ -100,6 +106,13 @@ Planned tickets the user can no longer open (for example after a reassignment, w
 - **Settings**
   - The two day-planning durations, entered with core's `Form::select_duration()`. The working day
     must be between 0h15 and 24h00; the default estimate between 0h00 and 24h00.
+  - The three working-day settings above (public holidays, closed-day policy, supervisors).
+  - A read-only **Working days and holidays** panel showing what the day plan relies on, most of which is
+    set up elsewhere, each with a link to where it is changed: whether the *Working days* extrafield
+    exists (it is missing until the module is re-enabled after an upgrade), the days the business is
+    closed (Leave module setup; not changeable while the Leave module is disabled), the number of public
+    holidays for the company's country (the dictionary only appears with the Leave or HRM module), and
+    how many active internal users have weekly hours and their own working days.
   - An **AI tools** table listing the five tools, with whether each is allowed in the chat assistant
     and in the MCP server. The table reads `AI_ASSISTANT_ALLOWED_TOOLS` and `AI_MCP_SERVER_ALLOWED_TOOLS`
     through `McpHandler::resolveAllowList()` and links to the AI module's *Tool Access Control* page.

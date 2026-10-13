@@ -61,7 +61,8 @@ class InfomaticalTicketPlan
 	 * Length of the user's working day on a given day, in minutes, and where it came from.
 	 *
 	 * - A public holiday (Home > Setup > Dictionaries > Public holidays, for the company's country) closes the
-	 *   business, so the day is 0 whatever the user's own working days say. Status 'publicholiday'.
+	 *   business, so the day is 0 whatever the user's own working days say. Status 'publicholiday'. Skipped
+	 *   when INFOMATICAL_PUBLIC_HOLIDAYS_CLOSE is off, for businesses that work on public holidays.
 	 * - A weekday the user does not work is 0. Their working days are the field on their user card; when it is
 	 *   empty, the days the business is open (MAIN_NON_WORKING_DAYS_INCLUDE_*). Status 'dayoff'.
 	 * - Otherwise the weekly hours on the user card (HRM section, llx_user.weeklyhours) divided by the number
@@ -92,7 +93,7 @@ class InfomaticalTicketPlan
 		$result = array('minutes' => $minutes, 'status' => 'working', 'source' => $source, 'weeklyhours' => $weeklyhours, 'days' => $days, 'userdays' => !empty($userdays));
 
 		$time = dol_mktime(0, 0, 0, (int) substr($day, 5, 2), (int) substr($day, 8, 2), (int) substr($day, 0, 4), 'gmt');
-		if ($time && num_public_holiday($time, $time, '', 1, 0, 0, 0, 0) > 0) {
+		if ($time && getDolGlobalInt('INFOMATICAL_PUBLIC_HOLIDAYS_CLOSE', 1) && num_public_holiday($time, $time, '', 1, 0, 0, 0, 0) > 0) {
 			$result['minutes'] = 0;
 			$result['status'] = 'publicholiday';
 		} elseif (!in_array((int) gmdate('N', (int) $time), $workdays)) {

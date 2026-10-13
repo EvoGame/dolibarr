@@ -79,7 +79,8 @@ class InterfaceInfomaticalTriggers extends DolibarrTriggers
 
 	/**
 	 * Refuse working days on which the business is normally closed, unless the user making the change may
-	 * authorise them (see infomaticalCanAuthoriseClosedDays()). Only days added by this change are checked,
+	 * authorise them (see infomaticalCanAuthoriseClosedDays()). Nothing is checked when
+	 * INFOMATICAL_CLOSEDDAY_POLICY is 'confirm'. Only days added by this change are checked,
 	 * so days authorised earlier survive later edits by anyone.
 	 *
 	 * On USER_MODIFY the days before the change come from $object->oldcopy, which the user card sets. Callers
@@ -96,7 +97,7 @@ class InterfaceInfomaticalTriggers extends DolibarrTriggers
 		dol_include_once('/infomatical/lib/infomatical.lib.php');
 
 		$key = 'options_'.INFOMATICAL_WORKDAYS_FIELD;
-		if (!is_array($object->array_options) || !array_key_exists($key, $object->array_options)) {
+		if (infomaticalClosedDayPolicy() == 'confirm' || !is_array($object->array_options) || !array_key_exists($key, $object->array_options)) {
 			return 0;
 		}
 		if ($action == 'USER_MODIFY' && !is_object($object->oldcopy)) {
@@ -116,7 +117,7 @@ class InterfaceInfomaticalTriggers extends DolibarrTriggers
 			return 1;
 		}
 
-		$this->errors[] = $langs->trans('InfomaticalErrorClosedWorkdays', $days);
+		$this->errors[] = $langs->trans(infomaticalClosedDayRefusal(), $days);
 		return -1;
 	}
 }

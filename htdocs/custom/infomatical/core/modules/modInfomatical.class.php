@@ -84,6 +84,9 @@ class modInfomatical extends DolibarrModules
 		$this->const = array(
 			1 => array('INFOMATICAL_WORKDAY_MINUTES', 'chaine', '450', 'Length of a technician working day, in minutes, for users with no weekly hours (day planning)', 1, 'current', 0),
 			2 => array('INFOMATICAL_DEFAULT_PLAN_MINUTES', 'chaine', '60', 'Estimate given to a ticket added to a day plan, in minutes', 1, 'current', 0),
+			3 => array('INFOMATICAL_PUBLIC_HOLIDAYS_CLOSE', 'chaine', '1', 'Public holidays close the business: no working time on them in day plans', 1, 'current', 0),
+			4 => array('INFOMATICAL_CLOSEDDAY_POLICY', 'chaine', 'authorise', 'Working days on days the business is normally closed: authorise (needs authorisation) or confirm (confirmation only)', 1, 'current', 0),
+			5 => array('INFOMATICAL_CLOSEDDAY_SUPERVISORS', 'chaine', '1', 'Supervisors may authorise working days on days the business is normally closed', 1, 'current', 0),
 		);
 
 		if (!isModEnabled('infomatical')) {

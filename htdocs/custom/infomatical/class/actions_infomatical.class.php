@@ -112,8 +112,8 @@ class ActionsInfomatical extends CommonHookActions
 		if (empty($names)) {
 			return 0;
 		}
-		$canauthorise = infomaticalCanAuthoriseClosedDays($user, (int) $object->id);
-		$message = $langs->transnoentitiesnoconv($canauthorise ? 'InfomaticalConfirmClosedWorkday' : 'InfomaticalErrorClosedWorkdays');
+		$canauthorise = infomaticalClosedDayPolicy() == 'confirm' || infomaticalCanAuthoriseClosedDays($user, (int) $object->id);
+		$message = $langs->transnoentitiesnoconv($canauthorise ? 'InfomaticalConfirmClosedWorkday' : infomaticalClosedDayRefusal());
 
 		$this->resprints = '<script>
 $(function () {
