@@ -38,7 +38,7 @@ class InterfaceInfomaticalTriggers extends DolibarrTriggers
 		parent::__construct($db);
 
 		$this->family = "crm";
-		$this->description = "Infomatical triggers: remove day-plan lines of deleted tickets.";
+		$this->description = "Infomatical triggers: remove day-plan lines of deleted tickets, check working days set on days the business is closed.";
 		$this->version = self::VERSIONS['dev'];
 		$this->picto = 'ticket';
 	}
@@ -68,8 +68,56 @@ class InterfaceInfomaticalTriggers extends DolibarrTriggers
 					return -1;
 				}
 				return 1;
+
+			case 'USER_CREATE':
+			case 'USER_MODIFY':
+				return $this->checkClosedWorkdays($action, $object, $user, $langs);
 		}
 
 		return 0;
+	}
+
+	/**
+	 * Refuse working days on which the business is normally closed, unless the user making the change may
+	 * authorise them (see infomaticalCanAuthoriseClosedDays()). Nothing is checked when
+	 * INFOMATICAL_CLOSEDDAY_POLICY is 'confirm'. Only days added by this change are checked,
+	 * so days authorised earlier survive later edits by anyone.
+	 *
+	 * On USER_MODIFY the days before the change come from $object->oldcopy, which the user card sets. Callers
+	 * that do not set it (the REST API, for example) are not checked: there is no way to tell what changed.
+	 *
+	 * @param string    $action USER_CREATE or USER_MODIFY
+	 * @param User      $object User being saved
+	 * @param User      $user   User making the change
+	 * @param Translate $langs  Translations
+	 * @return int<-1,1> 0 if nothing to check, 1 if OK, -1 if refused
+	 */
+	private function checkClosedWorkdays($action, $object, User $user, Translate $langs)
+	{
+		dol_include_once('/infomatical/lib/infomatical.lib.php');
+
+		$key = 'options_'.INFOMATICAL_WORKDAYS_FIELD;
+		if (infomaticalClosedDayPolicy() == 'confirm' || !is_array($object->array_options) || !array_key_exists($key, $object->array_options)) {
+			return 0;
+		}
+		if ($action == 'USER_MODIFY' && !is_object($object->oldcopy)) {
+			return 0;
+		}
+
+		$before = $action == 'USER_CREATE' ? array() : infomaticalParseWeekdays($object->oldcopy->array_options[$key] ?? '');
+		$added = array_values(array_intersect(array_diff(infomaticalParseWeekdays($object->array_options[$key]), $before), infomaticalClosedWeekdays()));
+		if (empty($added)) {
+			return 0;
+		}
+
+		$langs->load('infomatical@infomatical');
+		$days = infomaticalWeekdayNames($added, $langs);
+		if (infomaticalCanAuthoriseClosedDays($user, (int) $object->id)) {
+			dol_syslog('Infomatical: '.$user->login.' authorised working days on which the business is closed ('.$days.') for user id '.$object->id, LOG_NOTICE);
+			return 1;
+		}
+
+		$this->errors[] = $langs->trans(infomaticalClosedDayRefusal(), $days);
+		return -1;
 	}
 }

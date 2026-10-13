@@ -83,4 +83,52 @@ class ActionsInfomatical extends CommonHookActions
 		$this->results = array($tools);
 		return 0;
 	}
+
+	/**
+	 * Context 'usercard': on the user form, ask before a day the business is normally closed is added to the
+	 * person's working days, or say straight away that it will be refused. The real check is in the module
+	 * trigger (USER_CREATE, USER_MODIFY); this is only so nobody finds out after filling in the whole form.
+	 *
+	 * @param array<string,mixed>	$parameters	Hook parameters
+	 * @param User					$object		User shown on the card
+	 * @param string				$action		Action
+	 * @param HookManager			$hookmanager	Hook manager
+	 * @return int<0,0>
+	 */
+	public function formObjectOptions($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs, $user;
+
+		if (!$this->isContext($parameters, 'usercard') || !in_array($action, array('create', 'edit'))) {
+			return 0;
+		}
+		dol_include_once('/infomatical/lib/infomatical.lib.php');
+		$langs->load('infomatical@infomatical');
+
+		$names = array();
+		foreach (infomaticalClosedWeekdays() as $weekday) {
+			$names[$weekday] = infomaticalWeekdayNames(array($weekday), $langs);
+		}
+		if (empty($names)) {
+			return 0;
+		}
+		$canauthorise = infomaticalClosedDayPolicy() == 'confirm' || infomaticalCanAuthoriseClosedDays($user, (int) $object->id);
+		$message = $langs->transnoentitiesnoconv($canauthorise ? 'InfomaticalConfirmClosedWorkday' : infomaticalClosedDayRefusal());
+
+		$this->resprints = '<script>
+$(function () {
+	var closed = '.json_encode($names, JSON_HEX_TAG | JSON_HEX_AMP | JSON_FORCE_OBJECT).';
+	var message = '.json_encode($message, JSON_HEX_TAG | JSON_HEX_AMP).';
+	$("#options_'.INFOMATICAL_WORKDAYS_FIELD.'").on("select2:selecting", function (e) {
+		var name = closed[e.params.args.data.id];
+		if (!name) {
+			return;
+		}
+		'.($canauthorise ? 'if (!confirm(message.replace("%s", name))) { e.preventDefault(); }' : 'alert(message.replace("%s", name)); e.preventDefault();').'
+	});
+});
+</script>';
+
+		return 0;
+	}
 }

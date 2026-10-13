@@ -124,3 +124,124 @@ function infomaticalAiMissingRight(User $user, $required)
 
 	return '';
 }
+
+/**
+ * Name of the user extrafield holding the days a person works (ISO weekdays, 1 = Monday ... 7 = Sunday).
+ */
+const INFOMATICAL_WORKDAYS_FIELD = 'infomatical_workdays';
+
+/**
+ * Weekdays the business is normally closed, from core's MAIN_NON_WORKING_DAYS_INCLUDE_* (Leave module setup).
+ * Core only lets Monday, Friday, Saturday and Sunday be closed; Saturday and Sunday are closed by default.
+ *
+ * @return int[] ISO weekdays, 1 = Monday ... 7 = Sunday
+ */
+function infomaticalClosedWeekdays()
+{
+	$closed = array();
+	foreach (array(1 => array('MONDAY', 0), 5 => array('FRIDAY', 0), 6 => array('SATURDAY', 1), 7 => array('SUNDAY', 1)) as $weekday => $setting) {
+		if (getDolGlobalInt('MAIN_NON_WORKING_DAYS_INCLUDE_'.$setting[0], $setting[1])) {
+			$closed[] = $weekday;
+		}
+	}
+
+	return $closed;
+}
+
+/**
+ * Parse a working-days value as stored by a checkbox extrafield ("1,2,3" or an array).
+ *
+ * @param mixed $value Stored or posted value
+ * @return int[] Sorted, unique ISO weekdays
+ */
+function infomaticalParseWeekdays($value)
+{
+	$days = array();
+	foreach (is_array($value) ? $value : explode(',', (string) $value) as $day) {
+		$day = (int) $day;
+		if ($day >= 1 && $day <= 7) {
+			$days[$day] = $day;
+		}
+	}
+	sort($days);
+
+	return $days;
+}
+
+/**
+ * Days the user works, from the working-days field on their user card.
+ *
+ * @param User $user User
+ * @return int[] ISO weekdays, empty when the field is not filled in
+ */
+function infomaticalUserWorkdays($user)
+{
+	if (!isset($user->array_options) || !is_array($user->array_options) || !array_key_exists('options_'.INFOMATICAL_WORKDAYS_FIELD, $user->array_options)) {
+		$user->fetch_optionals();
+	}
+
+	return infomaticalParseWeekdays($user->array_options['options_'.INFOMATICAL_WORKDAYS_FIELD] ?? '');
+}
+
+/**
+ * How days the business is normally closed are handled when added to someone's working days
+ * (constant INFOMATICAL_CLOSEDDAY_POLICY): 'authorise' (default) refuses the change unless the editor may
+ * authorise it, 'confirm' only asks the editor to confirm on the user form.
+ *
+ * @return string 'authorise' or 'confirm'
+ */
+function infomaticalClosedDayPolicy()
+{
+	return getDolGlobalString('INFOMATICAL_CLOSEDDAY_POLICY', 'authorise') == 'confirm' ? 'confirm' : 'authorise';
+}
+
+/**
+ * Whether a user may give another user working days on which the business is normally closed:
+ * administrators, holders of the module permission, and anyone above the person in the hierarchy unless
+ * INFOMATICAL_CLOSEDDAY_SUPERVISORS is off.
+ *
+ * @param User $editor   User making the change
+ * @param int  $targetid User whose working days change
+ * @return bool
+ */
+function infomaticalCanAuthoriseClosedDays(User $editor, $targetid)
+{
+	if (!empty($editor->admin) || $editor->hasRight('infomatical', 'closedworkdays')) {
+		return true;
+	}
+
+	if (!getDolGlobalInt('INFOMATICAL_CLOSEDDAY_SUPERVISORS', 1)) {
+		return false;
+	}
+
+	return $targetid > 0 && $targetid != $editor->id && in_array($targetid, $editor->getAllChildIds());
+}
+
+/**
+ * Weekday names for messages, e.g. "Saturday, Sunday".
+ *
+ * @param int[]     $weekdays ISO weekdays
+ * @param Translate $langs    Translations
+ * @return string
+ */
+function infomaticalWeekdayNames(array $weekdays, $langs)
+{
+	$names = array(1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday', 7 => 'Sunday');
+	$out = array();
+	foreach ($weekdays as $weekday) {
+		$out[] = $langs->trans($names[$weekday]);
+	}
+
+	return implode(', ', $out);
+}
+
+/**
+ * Translation key of the message refusing a day the business is normally closed, which names who may
+ * authorise it.
+ *
+ * @return string
+ */
+function infomaticalClosedDayRefusal()
+{
+	return getDolGlobalInt('INFOMATICAL_CLOSEDDAY_SUPERVISORS', 1) ? 'InfomaticalErrorClosedWorkdays' : 'InfomaticalErrorClosedWorkdaysNoSupervisor';
+}
