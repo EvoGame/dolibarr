@@ -34,7 +34,13 @@ Each technician plans their own days. Nobody can see or change another person's 
   up/down control, an estimate in minutes (in steps of 15), a short note, and a remove action. Closed
   tickets stay in the list with their status, as a record of what was done.
 - **Summary.** Number of tickets, total estimate against the working day, tickets done, open work left,
-  and either the free time or an *overbooked* warning.
+  and either the free time or an *overbooked* warning. A tooltip says where the working day came from.
+- **Working day per technician.** Taken from the *Weekly hours* on the user's card (HRM section,
+  `llx_user.weeklyhours`), divided by the number of working days in the week. The working days follow
+  core's non-working-day settings (`MAIN_NON_WORKING_DAYS_INCLUDE_*`, set up in the Leave module; Saturday
+  and Sunday off by default), so 37.5 weekly hours over 5 days gives 7h30. When the user has no weekly
+  hours, or they give a day outside 0h15-24h00, `INFOMATICAL_WORKDAY_MINUTES` is used instead. See
+  `InfomaticalTicketPlan::getWorkday()`. Public holidays and leave are not deducted.
 - **Not planned for this day.** The rest of the user's queue (the same tickets as *My ticket queue*), each
   with an *Add* button and a *Last planned* link to the most recent earlier day it was on. Only tickets
   in the user's own queue can be added. The server checks this; it does not rely on the form.
@@ -47,7 +53,7 @@ values are created when the module is enabled and kept when it is disabled:
 
 | Constant | Default | Meaning |
 |---|---|---|
-| `INFOMATICAL_WORKDAY_MINUTES` | `450` (7h30) | Length of the working day the plan is measured against |
+| `INFOMATICAL_WORKDAY_MINUTES` | `450` (7h30) | Working day for users with no weekly hours on their card |
 | `INFOMATICAL_DEFAULT_PLAN_MINUTES` | `60` | Estimate given to a ticket when it is added |
 
 Storage is the table `llx_infomatical_ticketplan`: one row per ticket per technician per day, unique on

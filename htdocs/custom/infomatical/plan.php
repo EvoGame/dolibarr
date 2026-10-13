@@ -73,7 +73,8 @@ if ($day === '') {
 	$day = $today;
 }
 
-$workdayminutes = getDolGlobalInt('INFOMATICAL_WORKDAY_MINUTES', InfomaticalTicketPlan::DEFAULT_WORKDAY_MINUTES);
+$workday = InfomaticalTicketPlan::getWorkday($user);
+$workdayminutes = $workday['minutes'];
 $defaultminutes = getDolGlobalInt('INFOMATICAL_DEFAULT_PLAN_MINUTES', InfomaticalTicketPlan::DEFAULT_PLAN_MINUTES);
 
 $plan = new InfomaticalTicketPlan($db);
@@ -217,7 +218,14 @@ print $nav;
 // Summary of the day
 $free = $workdayminutes - $totalminutes;
 print '<div class="info marginbottomonly">';
-print $langs->trans('InfomaticalPlanSummary', count($planned), infomaticalFormatMinutes($totalminutes), infomaticalFormatMinutes($workdayminutes));
+if ($workday['source'] == 'user') {
+	$workdayhelp = $langs->trans('InfomaticalWorkdayFromUser', price($workday['weeklyhours'], 1, $langs, 0, 0), $workday['days']);
+} elseif ($workday['weeklyhours'] > 0) {
+	$workdayhelp = $langs->trans('InfomaticalWorkdayUserOutOfRange', price($workday['weeklyhours'], 1, $langs, 0, 0));
+} else {
+	$workdayhelp = $langs->trans('InfomaticalWorkdayFromGlobal');
+}
+print $form->textwithpicto($langs->trans('InfomaticalPlanSummary', count($planned), infomaticalFormatMinutes($totalminutes), infomaticalFormatMinutes($workdayminutes)), $workdayhelp);
 print '. '.$langs->trans('InfomaticalPlanDone', $nbdone, infomaticalFormatMinutes($openminutes));
 print ' - ';
 if ($free < 0) {

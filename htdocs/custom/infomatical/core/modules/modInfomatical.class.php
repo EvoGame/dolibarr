@@ -51,7 +51,7 @@ class modInfomatical extends DolibarrModules
 		$this->descriptionlong = 'ModuleInfomaticalDesc';
 		$this->editor_name = 'Infomatical';
 		$this->editor_url = '';
-		$this->version = '0.3.0';
+		$this->version = '0.4.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'ticket';
 
@@ -80,7 +80,7 @@ class modInfomatical extends DolibarrModules
 
 		// Kept when the module is disabled, so an adjusted value survives a re-activation
 		$this->const = array(
-			1 => array('INFOMATICAL_WORKDAY_MINUTES', 'chaine', '450', 'Length of a technician working day, in minutes (day planning)', 1, 'current', 0),
+			1 => array('INFOMATICAL_WORKDAY_MINUTES', 'chaine', '450', 'Length of a technician working day, in minutes, for users with no weekly hours (day planning)', 1, 'current', 0),
 			2 => array('INFOMATICAL_DEFAULT_PLAN_MINUTES', 'chaine', '60', 'Estimate given to a ticket added to a day plan, in minutes', 1, 'current', 0),
 		);
 

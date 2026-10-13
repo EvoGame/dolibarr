@@ -57,6 +57,42 @@ class InfomaticalTicketPlan
 	}
 
 	/**
+	 * Length of the user's working day, in minutes, and where it came from.
+	 *
+	 * Taken from the weekly hours on the user's card (HRM section, llx_user.weeklyhours), spread over the
+	 * company's working days (Saturday and Sunday off unless MAIN_NON_WORKING_DAYS_INCLUDE_* says otherwise).
+	 * Falls back to INFOMATICAL_WORKDAY_MINUTES when the user has no weekly hours, or when they give a day
+	 * outside 0h15-24h00, the same range the setup page accepts.
+	 *
+	 * @param User $user User whose day is planned
+	 * @return array{minutes:int,source:string,weeklyhours:float,days:int} source is 'user' or 'global'
+	 */
+	public static function getWorkday($user)
+	{
+		$days = 7;
+		foreach (array('MONDAY' => 0, 'FRIDAY' => 0, 'SATURDAY' => 1, 'SUNDAY' => 1) as $weekday => $default) {
+			if (getDolGlobalInt('MAIN_NON_WORKING_DAYS_INCLUDE_'.$weekday, $default)) {
+				$days--;
+			}
+		}
+
+		$weeklyhours = (float) $user->weeklyhours;
+		if ($weeklyhours > 0 && $days > 0) {
+			$minutes = (int) round($weeklyhours * 60 / $days);
+			if ($minutes >= 15 && $minutes <= 24 * 60) {
+				return array('minutes' => $minutes, 'source' => 'user', 'weeklyhours' => $weeklyhours, 'days' => $days);
+			}
+		}
+
+		return array(
+			'minutes' => getDolGlobalInt('INFOMATICAL_WORKDAY_MINUTES', self::DEFAULT_WORKDAY_MINUTES),
+			'source' => 'global',
+			'weeklyhours' => $weeklyhours,
+			'days' => $days,
+		);
+	}
+
+	/**
 	 * Return the day as 'YYYY-MM-DD' if it is a valid calendar date, '' otherwise.
 	 *
 	 * @param string $day Day to check
