@@ -12,7 +12,7 @@
 	<!-- <exclude-pattern>dev/initdata/dbf/includes</exclude-pattern> -->
 	<exclude-pattern>/documents/</exclude-pattern>
 	<exclude-pattern>/htdocs/core/class/lessc\.class\.php</exclude-pattern>
-	<exclude-pattern>/htdocs/(custom/(?!infomatical/)|includes/)</exclude-pattern>
+	<exclude-pattern>/htdocs/(custom/(?!infomatical/|square/)|includes/)</exclude-pattern>
 	<exclude-pattern>/htdocs/install/doctemplates/websites</exclude-pattern>
 	<exclude-pattern>/htdocs/([^/]+/)?conf\.php</exclude-pattern>
 	<exclude-pattern>*/nltechno*</exclude-pattern>
