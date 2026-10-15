@@ -1,0 +1,106 @@
+# Square - en_US
+ModuleSquareName = Square
+ModuleSquareDesc = Square online payment links and in-person card payments on a Square Terminal
+Permission59110001 = See Square payment links and Terminal payments
+Permission59110002 = Take in-person card payments on a Square Terminal
+
+# Setup
+SquareSetup = Square module setup
+SquareSetupHelp = Create an application in the Square Developer Dashboard (developer.squareup.com) and copy its access tokens here: the sandbox token to test, the production token to take real payments. The location decides the currency and the account that receives the money.
+SquareEnvironment = Environment
+SquareEnvSandbox = Sandbox (test)
+SquareEnvLive = Production
+SquareAccessToken = Access token
+SquareAccessTokenHelp = Developer Dashboard > your application > Credentials. The token needs the permissions ORDERS_READ, ORDERS_WRITE, PAYMENTS_READ, PAYMENTS_WRITE, MERCHANT_PROFILE_READ and, for Square Terminal, DEVICE_CREDENTIAL_MANAGEMENT.
+SquareLocation = Location
+SquareLocationAfterToken = Save a working access token first: the locations of the account will then be offered.
+SquareRecording = Recording payments in Dolibarr
+SquarePaymentModeHelp = Payment mode of the payments recorded in Dolibarr. Empty: credit card.
+SquareLinkExpiry = Payment links expire after
+SquareLinkExpiryHelp = A payment link still unpaid after this many days is deleted on Square, so it can no longer be paid. 0: never.
+SquareReady = Square is ready to take payments (%s).
+SquareExampleLink = Example of a payment link (a free amount of 10):
+SquareCronDisabled = The Scheduled jobs module is disabled. Without it, a payment is not recorded automatically when the customer closes the browser before coming back from Square, or when the Terminal page is closed before the payment completes. Enable it, or use "Check all on Square" on the Square payments list.
+SquareCronReconcile = Square: record payments not yet recorded
+SquareCronReconcileHelp = Checks on Square the payment links and Terminal payments still pending, records the invoice payments, and deletes expired payment links.
+SquareErrorNotConfigured = No access token or location is set for the %s environment.
+SquareErrorNoBankAccount = No bank account is chosen for Square payments in the module setup.
+SquareErrorLocations = The locations of the Square account could not be read.
+SquareErrorLocationCurrency = This location takes payments in %s, but the company currency is %s. Square refuses payments in another currency than the location's.
+SquareModuleNumber = Module number
+SquareDocumentation = Documentation
+SquareDocumentationHelp = README.md and docs/maintenance.md in the module directory.
+SquareSupportNotice = Square, Square Terminal and the Square logo are trademarks of Block, Inc. This module is not made or supported by Square.
+
+# Terminals
+SquareTerminals = Terminals
+SquareTerminalsHelp = Square Terminals of the location, in the %s environment. To pair a Terminal: get a pairing code here, then on the Terminal sign out and choose "Use a device code", and type the code.
+SquarePairTerminal = Pair a Square Terminal
+SquareDefaultTerminalName = Counter
+SquareGetPairingCode = Get a pairing code
+SquarePairingCode = On the Terminal, before %s, type this code (then reload this page to see it paired):
+SquarePairingCodeShort = Pairing code
+SquareDeviceId = Device id
+SquareDeviceStatusPaired = Paired
+SquareDeviceStatusUnpaired = Waiting for pairing
+SquareDeviceStatusExpired = Expired
+SquareSetDefault = Offer this Terminal first
+SquareDefaultDevice = Default device id
+SquareDefaultDeviceHelp = The Terminal offered first when taking a payment. Any device id can be typed, for example one of the test device ids Square documents for the sandbox (Terminal API > Testing), which are never paired.
+SquareNoTerminal = No Square Terminal is paired with this location.
+SquareErrorDevices = The Terminals could not be read from Square.
+SquareErrorPairing = No pairing code could be obtained from Square.
+
+# Online payment page
+SquareDoPayment = Pay with Square
+SquareDoPaymentHelp = Card, Apple Pay, Google Pay
+SquarePaymentTo = Payment to %s
+SquareErrorLinkNotCreated = The Square payment page could not be opened. Please try again later or contact us.
+SquareErrorCannotCheck = Your payment could not be checked with Square. If you were charged, it will be recorded within the hour; there is no need to pay again.
+SquareAlreadyRecorded = This payment has already been recorded. Thank you.
+
+# Terminal payment
+SquareTakeTerminalPayment = Take payment on Square Terminal
+SquareTerminal = Square Terminal
+SquareSendToTerminal = Send to the Terminal
+SquareSandboxWarning = Sandbox environment: no real card is charged.
+SquareTerminalWaiting = Waiting for the customer to present a card on the Terminal...
+SquareTerminalRecording = Payment taken. Recording it in Dolibarr...
+SquareTerminalRecorded = Payment taken and recorded on the invoice.
+SquareTerminalAttention = The payment was taken on Square but could not be recorded in Dolibarr: %s. Record it by hand, then mark it resolved on the Square payments list.
+SquareTerminalCancelled = The payment was canceled on the Terminal. Nothing was charged.
+SquareCancelOnTerminal = Cancel on the Terminal
+SquareCancelRefused = Square refused the cancelation: the card may already have been read.
+SquareShowPayment = Show the payment
+SquareBackToInvoice = Back to the invoice
+SquareNewTerminalPayment = New Terminal payment
+SquareErrorAmount = The amount must be more than zero and no more than the remainder to pay (%s).
+SquareErrorInvoiceNotPayable = Only a validated, unpaid customer invoice can be paid on a Square Terminal.
+SquareErrorTerminalNotSent = The payment request could not be sent to the Terminal.
+
+# Payments list
+SquareTransactions = Square payments
+SquareTypeLink = Payment link
+SquareTypeTerminal = Terminal
+SquarePaidFor = Paid for
+SquareReference = Square reference
+SquareCheckNow = Check on Square now
+SquareCheckAll = Check all on Square
+SquareRowUpdated = Updated from Square.
+SquareRowUnchanged = No change on Square.
+SquareResolve = Mark resolved
+SquareResolveHelp = Mark resolved once the payment has been recorded by hand in Dolibarr?
+SquareStatusPending = Pending
+SquareStatusProcessing = Recording
+SquareStatusRecorded = Recorded
+SquareStatusAttention = Needs attention
+SquareStatusCancelled = Canceled
+
+# Notes on rows
+SquareNoteAmountMismatch = Square received %s, which differs from the amount asked. Check it in the Square Dashboard and record it by hand.
+SquareNoteRecordByHand = Paid on Square, but the customer did not come back to the payment page, so it was not recorded. Record it by hand (payment page tag: %s).
+SquareNoteNotRecorded = Paid on Square, but no Dolibarr payment was found for it. Check the payment log (dolibarr_payment.log) and record it by hand.
+SquareNoteInvoiceNotFound = Invoice %s not found.
+SquareNoteOtherCurrency = Paid in %s, which is not the company currency: record it by hand.
+SquareNoteExpired = Unpaid: expired and deleted on Square.
+SquareNoteResolvedBy = Resolved by %s on %s

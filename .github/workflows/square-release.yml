@@ -1,0 +1,127 @@
+---
+# Package the Square module and publish it as a GitHub release when a pull request
+# that changes it is merged into develop.
+#
+# The release is tagged square-v<version>, the version being $this->version in
+# htdocs/custom/square/core/modules/modSquare.class.php. A merge that does not
+# bump it publishes nothing (a tag is never moved): the run ends with a warning instead.
+#
+# The asset is module_square-<version>.zip, with square/ at its root: the format
+# that Home > Setup > Modules > "Deploy/install an external app/module" accepts.
+#
+# The release is created with GITHUB_TOKEN, so it does not trigger CI-RELEASE
+# (ci-on-release.yml, inherited from upstream), which would otherwise dispatch to
+# Dolibarr/dolibarr-docker.
+name: "Square release"
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+    paths:
+      - "htdocs/custom/square/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: square-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      MODULE: square
+      MODULE_DIR: htdocs/custom/square
+      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+    steps:
+      - name: Checkout the merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Read the module version
+        id: version
+        run: |
+          version=$(sed -n "s/^[[:space:]]*\$this->version = '\([^']*\)';.*/\1/p" "$MODULE_DIR/core/modules/modSquare.class.php")
+          # Dolibarr's module installer only accepts digits and dots after the dash
+          if ! [[ "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error file=$MODULE_DIR/core/modules/modSquare.class.php::Cannot read a numeric \$this->version (got '$version')."
+            exit 1
+          fi
+          {
+            echo "version=$version"
+            echo "tag=$MODULE-v$version"
+            echo "package=module_$MODULE-$version.zip"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this version is already released
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --silent 2>/dev/null; then
+            echo "::warning::Tag $TAG already exists, so nothing was released. Bump \$this->version in modSquare.class.php to publish these changes."
+            echo "Not released: version $VERSION is already tagged $TAG. Bump \`\$this->version\` in \`modSquare.class.php\` to publish." >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check the module
+        if: steps.exists.outputs.skip == 'false'
+        run: |
+          # PHP syntax, with the runner's PHP
+          find "$MODULE_DIR" -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+          # en_US and en_GB must have the same keys (docs/maintenance.md, Translations)
+          diff <(grep -oE '^[A-Za-z_]+' "$MODULE_DIR/langs/en_US/$MODULE.lang" | sort) \
+               <(grep -oE '^[A-Za-z_]+' "$MODULE_DIR/langs/en_GB/$MODULE.lang" | sort)
+
+      - name: Build the package
+        if: steps.exists.outputs.skip == 'false'
+        # Not named ZIP: zip reads $ZIP (and unzip $UNZIP) as default command-line options
+        env:
+          PACKAGE: ${{ steps.version.outputs.package }}
+        run: |
+          mkdir -p dist
+          (cd "$(dirname "$MODULE_DIR")" && zip -r -X -q "$GITHUB_WORKSPACE/dist/$PACKAGE" "$MODULE" -x "*/.*")
+          # The installer looks for <module>/ at the root of the zip, and the descriptor inside it
+          unzip -Z1 "dist/$PACKAGE" | grep -qx "$MODULE/core/modules/modSquare.class.php"
+          if unzip -Z1 "dist/$PACKAGE" | grep -v "^$MODULE/"; then
+            echo "::error::The package contains files outside $MODULE/."
+            exit 1
+          fi
+          (cd dist && sha256sum "$PACKAGE" > "$PACKAGE.sha256")
+          echo "Built \`$PACKAGE\`: $(unzip -Z1 "dist/$PACKAGE" | grep -vc '/$') files." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release
+        if: steps.exists.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PACKAGE: ${{ steps.version.outputs.package }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          {
+            echo "Released from $PR_URL: $PR_TITLE"
+            echo
+            echo "**Install or upgrade:** Home → Setup → Modules → *Deploy/install an external app/module*, upload \`$PACKAGE\`, then disable and re-enable *Square* so menus, constants and SQL are refreshed."
+            echo
+            echo "Requirements are in the module's \`README.md\`; changes in the pull request above."
+          } > notes.md
+          gh release create "$TAG" "dist/$PACKAGE" "dist/$PACKAGE.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$MERGE_SHA" \
+            --title "Square $VERSION" \
+            --notes-file notes.md
+          echo "Published [$TAG]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG) from #$PR_NUMBER." >> "$GITHUB_STEP_SUMMARY"
