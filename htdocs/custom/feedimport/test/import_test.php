@@ -137,6 +137,8 @@ function cleanup()
 {
 	global $db;
 	$feeds = "SELECT rowid FROM ".MAIN_DB_PREFIX."feedimport_feed WHERE label LIKE 'FITEST%'";
+	$db->query("UPDATE ".MAIN_DB_PREFIX."product SET fk_price_expression = NULL WHERE ref LIKE 'FITEST%'");
+	$db->query("DELETE FROM ".MAIN_DB_PREFIX."c_price_expression WHERE title LIKE 'FITEST%'");
 	$products = "SELECT rowid FROM ".MAIN_DB_PREFIX."product WHERE ref LIKE 'FITEST%'";
 	$warehouses = "SELECT rowid FROM ".MAIN_DB_PREFIX."entrepot WHERE ref LIKE 'FITEST%'";
 	$supplier = "SELECT rowid FROM ".MAIN_DB_PREFIX."societe WHERE nom LIKE 'FITEST%'";
@@ -215,6 +217,7 @@ $feed->params['refprefix'] = 'FITEST-';
 $feed->params['vat'] = '20';
 $feed->params['decimal'] = ',';
 $feed->params['maxnew'] = 2;
+$feed->params['pause'] = 0;
 $feed->mapping = array('SKU' => 'sku', 'Name' => 'label', 'Cost' => 'buy_price', 'RRP' => 'sell_price', 'Qty' => 'stock', 'EAN' => 'barcode');
 $feed->create($user);
 
@@ -286,6 +289,7 @@ $xmlfeed->fk_soc = $sid;
 $xmlfeed->fk_entrepot = $wid2;
 $xmlfeed->params['refprefix'] = 'FITEST-';
 $xmlfeed->params['pattern'] = 'catalog_*.xml';
+$xmlfeed->params['pause'] = 0;
 $xmlfeed->create($user);
 file_put_contents(feedimportFeedDir($xmlfeed->id, 'schema').'/feed.xsd', $xsd);
 $info = $xmlfeed->getParser()->readXsd(feedimportFeedDir($xmlfeed->id, 'schema').'/feed.xsd');
@@ -316,6 +320,45 @@ $cron = new FeedImportFeed($db);
 $cron->cronRunDue();
 $xmlfeed->fetch($xmlfeed->id);
 check($xmlfeed->last_status == 'ok' && q1("SELECT label FROM llx_product WHERE ref = 'FITEST-BX-1'") == 'Bolt & nut' && stockOf('FITEST-BX-1', $wid2) == 500, 'scheduled job: valid file imported');
+
+echo "Pacing\n";
+$paced = new FeedImportFeed($db);
+$paced->label = 'FITEST paced';
+$paced->method = 'upload';
+$paced->filetype = 'csv';
+$paced->fk_soc = $sid;
+$paced->fk_entrepot = $wid2;
+$paced->params['refprefix'] = 'FITEST-';
+$paced->params['blocksize'] = 2;
+$paced->params['pause'] = 1;
+$paced->mapping = array('SKU' => 'sku', 'Name' => 'label', 'Qty' => 'stock');
+$paced->create($user);
+$start = time();
+$run = runFile($paced, "SKU;Name;Qty\nPC-1;One;1\nPC-2;Two;1\nPC-3;Three;1\nPC-4;Four;1\nPC-5;Five;1\n");
+$took = time() - $start;
+check($run && $run->nb_created == 5 && substr_count($run->log, 'pausing 1 s') == 2 && $took >= 2, '5 new rows in blocks of 2: paused twice ('.$took.' s)');
+$start = time();
+$run = runFile($paced, "SKU;Name;Qty\nPC-1;One;1\nPC-2;Two;1\nPC-3;Three;1\nPC-4;Four;1\nPC-5;Five;1\n", array('force' => true));
+check($run && $run->nb_unchanged == 5 && strpos($run->log, 'pausing') === false, 'unchanged rows are not counted: no pause');
+
+if (isModEnabled('dynamicprices')) {
+	echo "Dynamic prices\n";
+	require_once DOL_DOCUMENT_ROOT.'/product/dynamic_price/class/price_expression.class.php';
+	$expression = new PriceExpression($db);
+	$expression->title = 'FITEST margin';
+	$expression->expression = '#supplier_min_price# * 2';
+	$eid = $expression->create($user);
+	$formula = new Product($db);
+	$formula->fetch(0, 'FITEST-AC-100');
+	$formula->setPriceExpression($eid);
+	$stored = (float) q1("SELECT price FROM llx_product WHERE ref = 'FITEST-AC-100'");
+	$run = runFile($feed, "SKU;Name;Cost;RRP;Qty;EAN\nAC-100;Widget;14,00;99,99;4;\n", array('force' => true, 'forcezero' => false));
+	check(abs((float) q1("SELECT price FROM llx_product WHERE ref = 'FITEST-AC-100'") - $stored) < 0.001 && strpos($run->log, 'price formula') !== false, 'feed selling price not written over a price formula');
+	$check = new Product($db);
+	$check->fetch(0, 'FITEST-AC-100');
+	check(abs((float) $check->price - 28) < 0.001, 'the formula uses the new buy price: '.$check->price);
+	$db->query("DELETE FROM ".MAIN_DB_PREFIX."c_price_expression WHERE rowid = ".((int) $eid));
+}
 
 echo "Schedule and lock\n";
 $scheduled = new FeedImportFeed($db);

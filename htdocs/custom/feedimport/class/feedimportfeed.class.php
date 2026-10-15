@@ -150,6 +150,8 @@ class FeedImportFeed
 			'minratio' => 50,
 			'maxnew' => 100,
 			'keep' => 7,
+			'blocksize' => 500,		// pacing: rows that change something per block (0: no pacing)
+			'pause' => 10,			// pacing: seconds between blocks
 			'notify' => '',
 			// Email: file received and waiting for the scheduled job (name in files/)
 			'inbox' => '',
@@ -620,6 +622,18 @@ class FeedImportFeed
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Show a long run is still alive: refresh the lock's date, so it is not taken for a dead run (LOCK_TIMEOUT)
+	 *
+	 * @return	void
+	 */
+	public function heartbeat()
+	{
+		$now = dol_now();
+		$this->db->query("UPDATE ".MAIN_DB_PREFIX."feedimport_feed SET lock_date = '".$this->db->idate($now)."' WHERE rowid = ".((int) $this->id)." AND lock_date IS NOT NULL");
+		$this->lock_date = $now;
 	}
 
 	/**

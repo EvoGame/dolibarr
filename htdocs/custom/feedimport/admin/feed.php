@@ -138,6 +138,8 @@ function feedimportReadForm($feed)
 	$p['minratio'] = max(0, min(100, GETPOSTINT('minratio')));
 	$p['maxnew'] = max(0, GETPOSTINT('maxnew'));
 	$p['keep'] = max(1, GETPOSTINT('keep'));
+	$p['blocksize'] = max(0, GETPOSTINT('blocksize'));
+	$p['pause'] = max(0, min(300, GETPOSTINT('pause')));
 
 	// Mapping table
 	$fields = GETPOST('map_field', 'array');
@@ -610,6 +612,10 @@ if (!$isnew && $feed->status && $feed->next_run) {
 }
 print '</td></tr>';
 print '<tr class="oddeven fi-m fi-m-email fi-m-upload"><td>'.$langs->trans('FeedImportSchedule').'</td><td><span class="opacitymedium fi-m fi-m-email">'.$langs->trans('FeedImportScheduleEmailHelp').'</span><span class="opacitymedium fi-m fi-m-upload">'.$langs->trans('FeedImportScheduleUpload').'</span></td></tr>';
+
+print '<tr class="oddeven"><td>'.$form->textwithpicto($langs->trans('FeedImportPacing'), $langs->trans('FeedImportPacingHelp')).'</td><td>';
+print $langs->transnoentitiesnoconv('FeedImportPacingBlocks', '<input type="number" min="0" name="blocksize" class="width75" value="'.((int) $p['blocksize']).'">', '<input type="number" min="0" max="300" name="pause" class="width50" value="'.((int) $p['pause']).'">');
+print '</td></tr>';
 
 // 6. Other settings
 feedimportSection('6. '.$langs->trans('FeedImportStepOther'));

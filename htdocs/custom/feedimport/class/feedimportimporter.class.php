@@ -91,6 +91,14 @@ class FeedImportImporter
 	private $created = 0;
 	/** @var bool The feed had items before this run (it is not its first import) */
 	private $hadItems = false;
+	/** @var int Database changes made (items saved, stock corrected): what pacing counts */
+	private $changes = 0;
+	/** @var int Rows that changed something since the last pause */
+	private $blockRows = 0;
+	/** @var int Blocks completed */
+	private $blocks = 0;
+	/** @var int Products whose feed selling price was not written because they have a price formula */
+	private $formulaSkipped = 0;
 	/** @var Societe|null */
 	private $supplier = null;
 	/** @var bool */
@@ -201,17 +209,22 @@ class FeedImportImporter
 			}
 			$this->seen[$sku] = true;
 			$values = $this->rowValues($row['data'], $row['line']);
+			$before = $this->changes;
 			try {
 				$this->importItem($sku, $values, $row['line']);
 			} catch (Exception $e) {
 				$run->log('Line '.$row['line'].' ('.$sku.'): '.$e->getMessage(), 'error');
 			}
+			$this->pace($this->changes > $before);
 			if ($run->nb_rows % 500 == 0) {
 				$this->flushTouched();
 				$run->update();	// progress, for whoever looks at the run
 			}
 		}
 		$this->flushTouched();
+		if ($this->formulaSkipped > 0) {
+			$run->log($this->formulaSkipped.' products have a price formula (Dynamic prices): their selling price comes from the formula, not from the feed');
+		}
 		$this->nbItems = count($this->seen);
 
 		if ($parser->error !== '') {
@@ -236,6 +249,35 @@ class FeedImportImporter
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * Spread the load of a large import: after every block of rows that changed something, save the progress, show
+	 * the feed is still being imported, and pause. Rows that changed nothing cost almost nothing and are not counted.
+	 *
+	 * @param	bool	$changed	The row just processed changed something
+	 * @return	void
+	 */
+	private function pace($changed)
+	{
+		if (!$changed) {
+			return;
+		}
+		$this->blockRows++;
+		$size = (int) $this->feed->params['blocksize'];
+		if ($size <= 0 || $this->blockRows < $size) {
+			return;
+		}
+		$this->blocks++;
+		$this->blockRows = 0;
+		$this->flushTouched();
+		$this->run->update();
+		$this->feed->heartbeat();
+		$pause = max(0, (int) $this->feed->params['pause']);
+		if ($pause > 0) {
+			$this->run->log('Block '.$this->blocks.' done ('.$size.' rows changed): pausing '.$pause.' s');
+			sleep($pause);
+		}
 	}
 
 	/**
@@ -582,7 +624,8 @@ class FeedImportImporter
 	public function applyValues($productid, $sku, $values, $quiet = false)
 	{
 		$product = new Product($this->db);
-		if ($product->fetch($productid) <= 0) {
+		// The stored price, not a price formula's result: evaluating it also runs the Dynamic prices updaters
+		if ($product->fetch($productid, '', '', '', 1) <= 0) {
 			$this->run->log('Product '.$productid.' of '.$sku.' cannot be read: '.$this->objectError($product), 'error');
 			return -1;
 		}
@@ -626,8 +669,10 @@ class FeedImportImporter
 			}
 		}
 
-		// Selling price
-		if (isset($values['sell_price'])) {
+		// Selling price, unless a price formula (Dynamic prices) makes it
+		if (isset($values['sell_price']) && isModEnabled('dynamicprices') && !empty($product->fk_price_expression)) {
+			$this->formulaSkipped++;
+		} elseif (isset($values['sell_price'])) {
 			$base = ($this->feed->params['pricebase'] == 'TTC') ? 'TTC' : 'HT';
 			$current = ($base == 'TTC') ? (float) $product->price_ttc : (float) $product->price;
 			$vat = isset($values['vat_rate']) ? (float) $values['vat_rate'] : (float) $product->tva_tx;
@@ -794,6 +839,7 @@ class FeedImportImporter
 			return -1;
 		}
 		$this->stock[$productid] = $qty;
+		$this->changes++;
 		return 1;
 	}
 
@@ -832,6 +878,7 @@ class FeedImportImporter
 					$this->run->nb_zeroed++;
 					$this->run->log($obj->sku.': no longer in the feed, stock set to 0');
 				}
+				$this->pace($res > 0);
 			}
 			if ($res >= 0) {
 				$done[] = (int) $obj->rowid;
@@ -887,6 +934,7 @@ class FeedImportImporter
 			$this->run->log('Cannot save the item '.$sku.': '.$this->db->lasterror(), 'error');
 			return;
 		}
+		$this->changes++;
 		if (!$item) {
 			$item = new stdClass();
 			$item->id = $this->db->last_insert_id(MAIN_DB_PREFIX.'feedimport_item');

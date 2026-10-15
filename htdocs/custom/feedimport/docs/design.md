@@ -148,7 +148,7 @@ later is simply updated with the new quantity.
 
 ## Out of scope for this version
 
-Price formulas (e.g. selling price = buy price × margin), images, product variants, several suppliers in one file,
+Images, product variants, several suppliers in one file,
 deleting files on the supplier's server after import. Each can be added to a feed's settings later.
 
 ## Changes while building
@@ -162,3 +162,7 @@ deleting files on the supplier's server after import. Each can be added to a fee
 - **SFTP host key**: an MD5 fingerprint, because the libcurl of Debian and Ubuntu (libssh) cannot check SHA256 ones.
   *Test connection* shows the server's.
 - **A supplier is required** when products are matched by supplier reference, which is the default.
+- **Pacing** (requested after review): large files are imported in blocks of rows that change something, with a pause
+  between blocks, to spread the load over minutes. Rows are still committed one by one, by Dolibarr's own methods.
+- **Price formulas** are left to Dolibarr's *Dynamic prices* module (requested after review): the feed never writes
+  a selling price over a product's formula, and loads products without evaluating it.

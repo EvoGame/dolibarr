@@ -96,6 +96,23 @@ of an item seen in this run, gets its stock in the feed's warehouse corrected to
 `minratio` % of `last_count`, or when more than 2 % of rows have no SKU, unless *Ignore the safety threshold* is
 ticked on *Run now*.
 
+### Pacing
+
+`FeedImportImporter::pace()`, called after each row and each zeroed item: every `blocksize` rows that changed
+something (an item saved, a stock corrected; unchanged and ignored rows do not count), it saves the run's progress,
+refreshes the feed's lock date (`FeedImportFeed::heartbeat()`, so a long paced run is never taken for a dead one) and
+sleeps `pause` seconds. It only spreads the load: every row is still committed by Dolibarr's own methods as it is
+imported. `blocksize` 0 turns it off. *Run now* is paced too; the browser may give up waiting on a large file, but
+the run carries on (`ignore_user_abort`) and its page shows the progress.
+
+### Dynamic prices
+
+Products are loaded with `fetch(..., $ignore_expression = 1)`: evaluating a price formula also runs the Dynamic prices
+module's pending updaters (possibly HTTP requests), for every product. A feed selling price is not written to a product
+that has a formula (`fk_price_expression`), since the formula makes its price; the run's log counts them. Formulas see
+the supplier prices the feed writes (`#supplier_min_price#` is the lowest of all suppliers). Dolibarr evaluates a
+formula when a product is loaded, so lists and exports, which read `llx_product.price`, show the stored price.
+
 ### Updating products
 
 Through Dolibarr's own methods, so triggers, logs and price history work as usual: `Product::create()`,
@@ -153,15 +170,16 @@ wrong.
 | `schema_file`, `schema_type` (`xsd`/`mapping`), `fieldtypes`, `fields` | Schema, and the feed fields known |
 | `matchkey` (`supplierref`/`ref`/`barcode`), `create`, `refprefix`, `fk_category`, `vat`, `pricebase` (`HT`/`TTC`) | Import |
 | `zero`, `minratio`, `maxnew`, `keep`, `notify` | Zeroing, its guard, the new-products limit, files kept, email on failure |
+| `blocksize`, `pause` | Pacing: rows that change something per block (0 off), seconds between blocks |
 | `inbox`, `inbox_date` | Email: file waiting for the scheduled job |
 
 ## Known limits
 
-- **No price formulas** (selling price = buy price × margin), images, variants, several suppliers in one file, or
+- **Price formulas** are left to the Dynamic prices module (see above). **No** images, variants, several suppliers in one file, or
   deleting the file on the supplier's server after import.
 - **One warehouse per feed.** Two feeds sharing a warehouse overwrite each other's stock (the feed tab warns).
 - **Large feeds.** Rows are streamed, and unchanged items cost almost nothing, but a first import creates every
-  product through `Product::create()`: several minutes for tens of thousands of items. Prefer letting the scheduled
-  job (PHP CLI, no time limit) do a first big import rather than *Run now* in a browser behind a proxy timeout.
+  product through `Product::create()` (about 13 ms and 25 queries each on the test machine, 3,000 items in under a
+  minute), plus the pacing pauses. Prefer letting the scheduled job do a first big import rather than *Run now*.
 - **Extrafields** are written as text: date and list extrafields must be in the format Dolibarr stores.
 - **Repeated XML elements**: only the first occurrence of a repeated child element is read.

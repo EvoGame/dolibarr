@@ -26,6 +26,12 @@ opening the files:
   virtual stock is computed from the physical stock and open orders, so it follows. A bad file never zeroes the
   catalogue: nothing is zeroed when the file was not read to the end, failed the XSD, has far fewer items than the
   last one (threshold per feed, 50 % by default), or has too many rows without SKU.
+- **Large files are paced**: after every block of rows that change something (500 by default), the import pauses
+  (10 seconds by default), so a 10,000-row file is spread over minutes instead of loading the server at once. Each
+  row is still saved as it is imported; unchanged rows are not counted, so a quiet daily run does not wait.
+- **Selling price formulas** are Dolibarr's *Dynamic prices* module's job: give a product a formula such as
+  `#supplier_min_price# * 1.4` and it follows the buy prices the feed imports. The feed never writes its selling
+  price over a product that has a formula.
 - **Every run is recorded** (*Products → Supplier feeds → Imports*): the file (kept, 7 by default), what was
   created, updated, sent to review and set to 0, and a log. A failed run, or one needing a look, can email someone.
   A file identical to the last one imported is skipped.
@@ -60,7 +66,7 @@ The agreed design is in [docs/design.md](docs/design.md).
    6. **Other settings**: supplier, warehouse, how existing products are found (supplier reference, ref or
       barcode), create new products or not, ref prefix (recommended: two suppliers may use the same SKUs),
       category, default VAT, prices with or without VAT, zeroing and its safety threshold, most new products per
-      run, files kept, email on failure.
+      run, files kept, email on failure, and pacing (rows per block, pause between blocks).
 4. *Test connection*, *Fetch & preview*, then *Run now*. Check the run, and the review queue.
 
 ### Mapping file (CSV)
