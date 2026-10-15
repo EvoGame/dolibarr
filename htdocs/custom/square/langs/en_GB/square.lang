@@ -127,6 +127,7 @@ SquareNoteReplaced = Replaced by a link for another amount; deleted on Square.
 SquareTakeposTerminal = Square Terminal
 SquareTakeposLink = Payment link
 SquareTakeposSending = Sending to Square...
+SquareTakeposLinkHelpEmail = The sale is validated as awaiting payment, and the customer receives a link by email to pay it on their phone. The payment is recorded on the sale when it is made. (To send links by SMS too, set up an SMS provider in Home > Setup > SMS.)
 SquareTakeposLinkHelp = The sale is validated as awaiting payment, and the customer receives a link to pay it on their phone. The payment is recorded on the sale when it is made.
 SquareTakeposAttention = The card was charged, but TakePOS did not record the payment: %s Do not take payment again. Record it on the sale by hand, then mark it resolved on the Square payments list.
 SquareErrorTakeposBank = No bank account is set for the payment mode %s on TakePOS terminal %s (TakePOS setup, terminal tab).

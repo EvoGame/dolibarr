@@ -129,13 +129,23 @@ function squareSetupProblem()
 }
 
 /**
- * Whether Dolibarr can send SMS (Setup > SMS, with an SMS module such as OVH)
+ * Whether Dolibarr can send SMS: a sending method chosen in Setup > SMS, and the module that provides it
+ * (OVH...) still enabled, as CSMSFile::sendfile() resolves it
  *
  * @return bool
  */
 function squareCanSendSms()
 {
-	return getDolGlobalString('MAIN_SMS_SENDMODE') !== '' && !getDolGlobalString('MAIN_DISABLE_ALL_SMS');
+	$sendmode = getDolGlobalString('MAIN_SMS_SENDMODE');
+	if ($sendmode === '' || getDolGlobalString('MAIN_DISABLE_ALL_SMS')) {
+		return false;
+	}
+	$classmodule = getDolGlobalString('MAIN_MODULE_'.strtoupper($sendmode).'_SMS', $sendmode);
+	if ($classmodule == 'ovh') {
+		$classmodule = 'ovhsms@ovh';
+	}
+	$tmp = explode('@', $classmodule);
+	return isModEnabled(empty($tmp[1]) ? $tmp[0] : $tmp[1]);
 }
 
 /**

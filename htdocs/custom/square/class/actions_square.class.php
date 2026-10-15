@@ -489,8 +489,7 @@ class ActionsSquare extends CommonHookActions
 				'phone' => $langs->transnoentitiesnoconv('SquarePhoneForSms'),
 				'byemail' => $langs->transnoentitiesnoconv('SquareSendByEmail'),
 				'bysms' => $langs->transnoentitiesnoconv('SquareSendBySms'),
-				'nosms' => $langs->transnoentitiesnoconv('SquareErrorNoSms'),
-				'linkhelp' => $langs->transnoentitiesnoconv('SquareTakeposLinkHelp'),
+				'linkhelp' => $langs->transnoentitiesnoconv(squareCanSendSms() ? 'SquareTakeposLinkHelp' : 'SquareTakeposLinkHelpEmail'),
 				'sandbox' => $langs->transnoentitiesnoconv('SquareSandboxWarning'),
 				'error' => $langs->transnoentitiesnoconv('Error'),
 			),
@@ -560,14 +559,13 @@ class ActionsSquare extends CommonHookActions
 		function squareSendLinkForm() {
 			var html = "<div class=\"opacitymedium\">"+squareEsc(squarePos.txt.linkhelp)+"</div><br>"
 				+ "<div><input type=\"email\" id=\"squareto_email\" class=\"minwidth200\" placeholder=\""+squareEsc(squarePos.txt.email)+"\" value=\""+squareEsc(squarePos.email)+"\"> "
-				+ "<button type=\"button\" class=\"button\" onclick=\"squareSendLink(\'email\');\">"+squareEsc(squarePos.txt.byemail)+"</button></div><br>"
-				+ "<div><input type=\"tel\" id=\"squareto_sms\" class=\"minwidth200\" placeholder=\""+squareEsc(squarePos.txt.phone)+"\" value=\""+squareEsc(squarePos.phone)+"\"> ";
+				+ "<button type=\"button\" class=\"button\" onclick=\"squareSendLink(\'email\');\">"+squareEsc(squarePos.txt.byemail)+"</button></div><br>";
+			/* No SMS provider: no SMS option at all, rather than one that cannot be used */
 			if (squarePos.cansms) {
-				html += "<button type=\"button\" class=\"button\" onclick=\"squareSendLink(\'sms\');\">"+squareEsc(squarePos.txt.bysms)+"</button>";
-			} else {
-				html += "<button type=\"button\" class=\"button disabled\" title=\""+squareEsc(squarePos.txt.nosms)+"\" onclick=\"alert(squarePos.txt.nosms);\">"+squareEsc(squarePos.txt.bysms)+"</button>";
+				html += "<div><input type=\"tel\" id=\"squareto_sms\" class=\"minwidth200\" placeholder=\""+squareEsc(squarePos.txt.phone)+"\" value=\""+squareEsc(squarePos.phone)+"\"> "
+					+ "<button type=\"button\" class=\"button\" onclick=\"squareSendLink(\'sms\');\">"+squareEsc(squarePos.txt.bysms)+"</button></div><br>";
 			}
-			html += "</div><br><button type=\"button\" class=\"button button-cancel\" onclick=\"squareHide();\">"+squareEsc(squarePos.txt.close)+"</button>";
+			html += "<button type=\"button\" class=\"button button-cancel\" onclick=\"squareHide();\">"+squareEsc(squarePos.txt.close)+"</button>";
 			squareShow(html);
 		}
 		function squareSendLink(channel) {
@@ -578,7 +576,7 @@ class ActionsSquare extends CommonHookActions
 			parent.$("#poslines").load("invoice.php?place="+encodeURIComponent(squarePos.place)+"&action=valid&token="+encodeURIComponent(squarePos.token)+"&pay=delayed&amount=0&excess=0&invoiceid="+squarePos.invoiceid, function() {
 				squarePost({action: "sendlink", invoiceid: squarePos.invoiceid, channel: channel, to: to}, function(d) {
 					if (d.error) {
-						squareShow("<div class=\"error\">"+squareEsc(d.error)+"</div><br><button type=\"button\" class=\"button\" onclick=\"squareSendLinkForm();\">"+squareEsc(squarePos.txt.byemail)+" / "+squareEsc(squarePos.txt.bysms)+"</button> <button type=\"button\" class=\"button\" onclick=\"squareAfterTakepos(0);\">"+squareEsc(squarePos.txt.close)+"</button>");
+						squareShow("<div class=\"error\">"+squareEsc(d.error)+"</div><br><button type=\"button\" class=\"button\" onclick=\"squareSendLinkForm();\">"+squareEsc(squarePos.txt.byemail)+(squarePos.cansms ? " / "+squareEsc(squarePos.txt.bysms) : "")+"</button> <button type=\"button\" class=\"button\" onclick=\"squareAfterTakepos(0);\">"+squareEsc(squarePos.txt.close)+"</button>");
 						return;
 					}
 					squareShow("<div class=\"ok\">"+squareEsc(d.message)+"</div>");

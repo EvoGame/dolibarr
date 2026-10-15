@@ -89,8 +89,10 @@ Hooks in context `takepospay` (`takepos/pay.php`): `addMoreActionsButtons` retur
 - The redirect URL is `paymentok.php` with the invoice's tag (`INV=<id>.CUS=<customer id>.PM=square`). The buyer usually pays on
   another device, with no session: `isPaymentOK` then finds the row from Square's `orderId` parameter or, failing
   that, from the pending links with that tag (each checked with Square).
-- Email: `CMailFile`, from `MAIN_MAIL_EMAIL_FROM`. SMS: `CSMSFile`, which needs `MAIN_SMS_SENDMODE` (an SMS
-  module). The text is in the customer's language when the third party has one.
+- Email: `CMailFile`, from `MAIN_MAIL_EMAIL_FROM`. SMS: `CSMSFile`, which needs `MAIN_SMS_SENDMODE` and the
+  module providing it (OVH...) enabled: `squareCanSendSms()` resolves it as `CSMSFile::sendfile()` does. Without
+  it, TakePOS shows no SMS option at all, and the invoice card's send page says why SMS is unavailable. The text
+  is in the customer's language when the third party has one.
 - An event `AC_SQUARE_LINK_SENT` is added to the invoice.
 
 ### The claim, and the cron job
