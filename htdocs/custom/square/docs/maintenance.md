@@ -9,7 +9,7 @@ same way (see `htdocs/custom/infomatical/docs/maintenance.md`, *Where the code l
 
 - `htdocs/custom/.gitignore` re-includes it with `!/square/`.
 - `dev/setup/codesniffer/ruleset.xml` checks it like core code: the `htdocs/custom/` exclusion is
-  `custom/(?!infomatical/|square/)`.
+  `custom/(?!infomatical/|square/|feedimport/)` (Feed Import is checked the same way).
 - `.github/workflows/square-release.yml` packages it, exactly as `infomatical-release.yml` does for Infomatical:
   a pull request merged into `develop` that changes `htdocs/custom/square/` and bumps `$this->version` in
   `modSquare.class.php` publishes `module_square-<version>.zip` under the tag `square-v<version>`.
