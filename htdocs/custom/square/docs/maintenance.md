@@ -23,7 +23,7 @@ rule are the same as for Infomatical.
 |---|---|---|
 | Module number | `591100` | Range 500000–599999 (modules not on DoliStore). Must not change after deployment. |
 | Rights class / module key | `square` | `isModEnabled('square')`, `$user->hasRight('square', 'read' / 'terminal')`, langs `square@square` |
-| Permissions | `59110001` read, `59110002` terminal | |
+| Permissions | `59110001` read, `59110002` terminal, `59110003` sendlink | |
 | Minimum Dolibarr | 24.0 | |
 | Dependencies | `modFacture` | *Banks & Cash* and *Scheduled jobs* are optional but recommended |
 | Square API version | `SquareApi::API_VERSION` | Sent as `Square-Version` on every request |
@@ -58,6 +58,41 @@ checkout (tipping off, 5-minute deadline) and a row. The page polls `ajax/termin
 calls `SquareTransaction::refresh()`: once the checkout is `COMPLETED` and its payments check out, the row is
 claimed and `recordInvoicePayment()` records the payment and the bank entry in one database transaction.
 
+### TakePOS (Square Terminal)
+
+Hooks in context `takepospay` (`takepos/pay.php`): `addMoreActionsButtons` returns two buttons in TakePOS's
+`$action_buttons` format, and `completePayment` prints the panel and its JavaScript. The JavaScript talks to
+`ajax/takepos.php`:
+
+1. `send` creates a Terminal checkout for the amount typed (or what remains), to the till's Terminal
+   (`squareDeviceId()`), with a row whose `source` is `takepos`. A checkout still pending for the sale is
+   followed again instead of being doubled.
+2. `status` is polled. When the checkout is paid, `refresh()` **claims** the row but does not record anything:
+   for `takepos` rows TakePOS must record the payment, because its own validation does the stock movement, the
+   cash control and the bank account of the till. Only the request that claimed the row answers
+   `claimed: true`, so a reloaded page never records twice.
+3. The page then calls TakePOS's own `invoice.php?action=valid&pay=<code>&amount=…`, as TakePOS's buttons do,
+   and polls `status` once more: `checkProcessing()` → `linkTakeposPayment()` finds the payment TakePOS just made
+   (same invoice, made after the checkout, same amount, the Square payment mode, no external id yet) and writes
+   the Square payment id into its `ext_payment_id` (`ext_payment_site = 'square'`).
+4. If the till page is closed after the card was charged, the cron job sets the row to `attention` instead of
+   recording it: the sale is still a draft and may have been paid another way since.
+
+### Payment links sent by email or SMS
+
+`SquareTransaction::sendInvoiceLink()`, used by `sendlink.php` (invoice card) and `ajax/takepos.php`
+(`sendlink`; the page first has TakePOS validate the sale with `pay=delayed`, i.e. awaiting payment):
+
+- `getInvoiceLink()` reuses the pending link of the invoice if it is for what remains to pay; otherwise it
+  deletes the old link on Square (after one more check that it was not paid meanwhile) and creates a new one, so
+  only one link per invoice can be paid.
+- The redirect URL is `paymentok.php` with the invoice's tag (`INV=<id>.CUS=<customer id>.PM=square`). The buyer usually pays on
+  another device, with no session: `isPaymentOK` then finds the row from Square's `orderId` parameter or, failing
+  that, from the pending links with that tag (each checked with Square).
+- Email: `CMailFile`, from `MAIN_MAIL_EMAIL_FROM`. SMS: `CSMSFile`, which needs `MAIN_SMS_SENDMODE` (an SMS
+  module). The text is in the customer's language when the third party has one.
+- An event `AC_SQUARE_LINK_SENT` is added to the invoice.
+
 ### The claim, and the cron job
 
 `SquareTransaction::setStatus()` updates the row only if its status is still one of the expected ones, and
@@ -72,6 +107,7 @@ The cron job (`SquareTransaction::cronReconcile()`, every 15 minutes, rows older
 | `pending`, anything else (order, member, donation, free) | paid | `attention`: the buyer never came back, so core never ran the post-payment actions (validate member, etc.), which the module does not duplicate |
 | `pending` | paid a different amount | `attention` |
 | `pending` Terminal | `CANCELED` | `cancelled` |
+| `pending` TakePOS Terminal | paid | `attention`: the till never completed the sale |
 | `pending` link, older than `SQUARE_LINK_EXPIRY_DAYS` (default 7) | unpaid | Deleted on Square, checked once more, then `cancelled` |
 | `processing` | — | `recorded` once a Dolibarr payment with its `ext_payment_id` exists; `attention` if none after 30 minutes |
 
@@ -85,6 +121,7 @@ A person resolves `attention` rows by recording the payment by hand, then *Mark 
 | `SQUARE_SANDBOX_ACCESS_TOKEN`, `SQUARE_LIVE_ACCESS_TOKEN` | Access tokens. Stored like Stripe's keys (clear in `llx_const`). |
 | `SQUARE_SANDBOX_LOCATION_ID`, `SQUARE_LIVE_LOCATION_ID` | Location taking the payments |
 | `SQUARE_SANDBOX_DEVICE_ID`, `SQUARE_LIVE_DEVICE_ID` | Terminal offered first (the last one used) |
+| `SQUARE_SANDBOX_DEVICE_ID_TAKEPOS<n>`, `SQUARE_LIVE_DEVICE_ID_TAKEPOS<n>` | Terminal of TakePOS till `<n>`; empty: the default one |
 | `SQUARE_BANK_ACCOUNT_FOR_PAYMENTS` | Bank account of the payments |
 | `SQUARE_PAYMENT_MODE_FOR_PAYMENTS` | Payment mode id (`llx_c_paiement`); empty: `CB` |
 | `SQUARE_LINK_EXPIRY_DAYS` | Days before an unpaid link is deleted; 0 never |
@@ -98,7 +135,12 @@ A person resolves `attention` rows by recording the payment by hand, then *Mark 
   public endpoint and a signature key to manage. If faster catch-up is ever needed, a `payment.updated` webhook
   could call `refresh()` on the matching row.
 - **Refunds** are made in the Square Dashboard and recorded by hand in Dolibarr.
-- **TakePOS** is not integrated: Terminal payments are taken from the invoice card.
+- **TakePOS bank account.** TakePOS records Terminal payments in the bank account its till setup gives the Square
+  payment mode, not in `SQUARE_BANK_ACCOUNT_FOR_PAYMENTS` (which is for online payments and the invoice card).
+  Choose a dedicated payment mode in the Square setup to keep Square takings apart from other card payments.
+- **TakePOS link matching.** `linkTakeposPayment()` matches on invoice, time, amount and payment mode. If the
+  same sale is also paid, after the Terminal, with another payment of the same amount and the same mode before
+  the module links its own, the wrong one may be linked; the amounts recorded are still right.
 - **Replay of the return URL** (e.g. reload) shows core's generic failure page with the message *This payment
   has already been recorded*: core's `paymentok.php` has no "already paid" success state for external modules.
 - **Free-amount links** (`newpayment.php?amount=…&tag=…`) are refused by core with *Bad value for key* when
@@ -112,6 +154,9 @@ A person resolves `attention` rows by recording the payment by hand, then *Mark 
 | Hook `isPaymentOK` | Still called for methods other than paypal/paybox/stripe; core still reads `FinalPaymentAmt`, `currencyCodeType`, `TRANSACTIONID`, `paymentType`, `ipaddress` from the session after it | `htdocs/public/payment/paymentok.php` |
 | Duplicate check | `paymentok.php` still refuses a `TRANSACTIONID` already in `llx_paiement.ext_payment_id` | same |
 | Hook `addMoreActionsButtons` | Context `invoicecard` | `htdocs/compta/facture/card.php` |
+| TakePOS hooks | Context `takepospay`: `addMoreActionsButtons` still merges `resArray` into `$action_buttons` (keys `function`, `span`, `text`, `class`), `completePayment` still prints `resPrint`; `#change1`, `#selectaccountid`, `parent.$.colorbox` still exist | `htdocs/takepos/pay.php` |
+| TakePOS recording | `invoice.php?action=valid` still takes `pay` (payment mode code; `delayed` validates without payment), `amount`, `invoiceid`, `accountid`; bank account constant still `CASHDESK_ID_BANKACCOUNT_<code><till>`; sales still have `module_source = 'takepos'` | `htdocs/takepos/invoice.php` |
+| `CMailFile`, `CSMSFile` | Same constructors, `sendfile()` | `htdocs/core/class/` |
 | `Paiement::create()`, `addPaymentToBank()` | Same signatures | `htdocs/compta/paiement/class/paiement.class.php` |
 | `getURLContent()` | Still accepts `POSTALREADYFORMATED`, `DELETE`, header strings, timeouts | `htdocs/core/lib/geturl.lib.php` |
 

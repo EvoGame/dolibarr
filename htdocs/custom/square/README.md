@@ -13,6 +13,15 @@ Dolibarr module for taking payments through [Square](https://squareup.com):
   validated, unpaid customer invoice sends the amount to a paired Terminal. The page follows the payment
   live, and records it on the invoice as soon as the card is accepted. The request can be cancelled from
   Dolibarr until the card is read.
+- **TakePOS.** The payment screen of TakePOS gets two more buttons:
+  - **Square Terminal** sends the amount to the till's Square Terminal. Once the card is accepted, TakePOS
+    validates the sale and records the payment itself, exactly as for its own card button (stock, cash
+    control, the till's bank account), and the module links that payment to the Square payment.
+  - **Payment link** validates the sale as awaiting payment and sends the customer a Square payment link by
+    email or SMS, to pay on their phone. The payment is recorded on the sale when it is made.
+- **Payment links by email or SMS** from any validated, unpaid customer invoice: *Send Square payment link*
+  on the invoice card. Sending again reuses the same link while the amount is unchanged, and each sending is
+  recorded in the invoice's events.
 - **Nothing paid is lost.** If the customer closes the browser before coming back from Square, or the
   Terminal page is closed before the payment completes, a scheduled job finds the payment on Square and
   records it (for invoices), or lists it as *Needs attention* (for anything else). Payment links still
@@ -30,6 +39,8 @@ those needing attention first.
   [Square Developer Dashboard](https://developer.squareup.com/apps).
 - The company currency must be the currency of the Square location (Square refuses any other).
 - For Terminal payments: a Square Terminal, in a country where the Terminal API is available.
+- For SMS: an SMS provider set up in **Home → Setup → SMS** (for example the OVH module). Email uses
+  Dolibarr's email setup.
 
 ## Setup
 
@@ -40,8 +51,12 @@ those needing attention first.
    to take real money.
 3. **Terminals** tab: get a pairing code, then on the Terminal sign out, choose *Use a device code* and
    type it. The Terminal appears as *Paired*.
-4. Give users the permissions *See Square payment links and Terminal payments* and *Take in-person card
-   payments on a Square Terminal* (with *Create/modify payments of customer invoices*).
+4. Give users the permissions *See Square payment links and Terminal payments*, *Take in-person card
+   payments on a Square Terminal* (with *Create/modify payments of customer invoices* on the invoice card, or
+   *Use Point Of Sale* in TakePOS) and *Send Square payment links to customers by email or SMS*.
+5. TakePOS: on the **Terminals** tab, choose the Square Terminal of each till (or leave the default one). In
+   the TakePOS setup of each till, give the Square payment mode (card, unless you chose another one) a bank
+   account: TakePOS records the payment there. The Terminals tab shows which tills are ready.
 
 In the sandbox no real Terminal can be paired: type one of the test device ids Square documents
 (Terminal API → *Test in the Sandbox*) as the default device on the **Terminals** tab.

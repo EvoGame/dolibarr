@@ -76,6 +76,24 @@ if ($action == 'pair') {
 	}
 }
 
+// Square Terminal of each TakePOS till
+if ($action == 'settills' && isModEnabled('takepos')) {
+	$db->begin();
+	$ok = true;
+	$nbtills = max(1, getDolGlobalInt('TAKEPOS_NUM_TERMINALS', 1));
+	for ($till = 1; $till <= $nbtills; $till++) {
+		$ok = $ok && dolibarr_set_const($db, 'SQUARE_'.$envkey.'_DEVICE_ID_TAKEPOS'.$till, trim(GETPOST('till'.$till, 'alphanohtml')), 'chaine', 0, '', $conf->entity) > 0;
+	}
+	if ($ok) {
+		$db->commit();
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+		header('Location: '.$_SERVER['PHP_SELF']);
+		exit;
+	}
+	$db->rollback();
+	setEventMessages($langs->trans('Error'), null, 'errors');
+}
+
 if ($action == 'setdefault') {
 	if (dolibarr_set_const($db, 'SQUARE_'.$envkey.'_DEVICE_ID', trim(GETPOST('deviceid', 'alphanohtml')), 'chaine', 0, '', $conf->entity) > 0) {
 		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
@@ -173,6 +191,47 @@ print $form->textwithpicto($langs->trans('SquareDefaultDevice'), $langs->trans('
 print '<input type="text" name="deviceid" class="minwidth300" value="'.dolPrintHTMLForAttribute($default).'"> ';
 print '<input type="submit" class="button small" value="'.dolPrintHTMLForAttribute($langs->trans('Save')).'">';
 print '</form>';
+
+if (isModEnabled('takepos')) {
+	$langs->load('cashdesk');
+	$options = array();
+	foreach ((empty($codes) ? array() : $codes) as $code) {
+		if (!empty($code['device_id']) && !empty($code['status']) && $code['status'] == 'PAIRED') {
+			$options[$code['device_id']] = (empty($code['name']) ? $code['device_id'] : $code['name']);
+		}
+	}
+	if ($default !== '' && empty($options[$default])) {
+		$options[$default] = $default;
+	}
+
+	print '<br>';
+	print load_fiche_titre($langs->trans('SquareTakeposTills'), '', '');
+	print '<span class="opacitymedium">'.$langs->trans('SquareTakeposTillsHelp').'</span><br><br>';
+	print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="settills">';
+	print '<div class="div-table-responsive-no-min">';
+	print '<table class="noborder centpercent">';
+	print '<tr class="liste_titre"><td class="titlefield">'.$langs->trans('Terminal').'</td><td>'.$langs->trans('SquareTerminal').'</td><td>'.$langs->trans('Status').'</td></tr>';
+	$nbtills = max(1, getDolGlobalInt('TAKEPOS_NUM_TERMINALS', 1));
+	for ($till = 1; $till <= $nbtills; $till++) {
+		$selected = getDolGlobalString('SQUARE_'.$envkey.'_DEVICE_ID_TAKEPOS'.$till);
+		$tilloptions = $options;
+		if ($selected !== '' && empty($tilloptions[$selected])) {
+			$tilloptions[$selected] = $selected;
+		}
+		// What TakePOS needs to record the payment: a bank account for the payment mode on this till
+		$tillproblem = squareTakeposProblem((string) $till);
+
+		print '<tr class="oddeven"><td>'.dolPrintLabel(getDolGlobalString('TAKEPOS_TERMINAL_NAME_'.$till, $langs->trans('TerminalName', $till))).'</td><td>';
+		print $form->selectarray('till'.$till, $tilloptions, $selected, $langs->trans('SquareUseDefaultDevice'), 0, 0, '', 0, 0, 0, '', 'minwidth200');
+		print '</td><td>'.($tillproblem === '' ? img_picto('', 'tick').' '.$langs->trans('SquareReadyShort') : '<span class="warning">'.dolPrintLabel($tillproblem).'</span>').'</td></tr>';
+	}
+	print '</table>';
+	print '</div>';
+	print '<div class="center"><input type="submit" class="button small" value="'.dolPrintHTMLForAttribute($langs->trans('Save')).'"></div>';
+	print '</form>';
+}
 
 print dol_get_fiche_end();
 

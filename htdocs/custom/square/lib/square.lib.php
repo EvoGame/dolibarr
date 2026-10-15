@@ -127,3 +127,56 @@ function squareSetupProblem()
 	}
 	return '';
 }
+
+/**
+ * Whether Dolibarr can send SMS (Setup > SMS, with an SMS module such as OVH)
+ *
+ * @return bool
+ */
+function squareCanSendSms()
+{
+	return getDolGlobalString('MAIN_SMS_SENDMODE') !== '' && !getDolGlobalString('MAIN_DISABLE_ALL_SMS');
+}
+
+/**
+ * Device id of the Square Terminal to use: the one of the TakePOS terminal if set, else the default one
+ *
+ * @param	int|string	$takeposterminal	TakePOS terminal number ('' outside TakePOS)
+ * @return	string
+ */
+function squareDeviceId($takeposterminal = '')
+{
+	$env = getDolGlobalInt('SQUARE_LIVE') ? 'LIVE' : 'SANDBOX';
+	if ((string) $takeposterminal !== '' && getDolGlobalString('SQUARE_'.$env.'_DEVICE_ID_TAKEPOS'.$takeposterminal)) {
+		return getDolGlobalString('SQUARE_'.$env.'_DEVICE_ID_TAKEPOS'.$takeposterminal);
+	}
+	return getDolGlobalString('SQUARE_'.$env.'_DEVICE_ID');
+}
+
+/**
+ * Why the Square Terminal button of TakePOS cannot be used on a till, if it cannot
+ *
+ * @param	?string		$terminal	TakePOS till number (null: the till of the session)
+ * @return	string					'' when ready, else a translated message
+ */
+function squareTakeposProblem($terminal = null)
+{
+	global $db, $langs;
+
+	$langs->load('square@square');
+	if ($terminal === null) {
+		$terminal = empty($_SESSION['takeposterminal']) ? '' : (string) $_SESSION['takeposterminal'];
+	}
+	if (squareDeviceId($terminal) === '') {
+		return $langs->trans('SquareNoTerminal');
+	}
+	// TakePOS records the payment in the bank account its till setup gives the payment mode
+	if (isModEnabled('bank') && !getDolGlobalString('TAKEPOS_CAN_FORCE_BANK_ACCOUNT_DURING_PAYMENT')) {
+		$code = (string) dol_getIdFromCode($db, squarePaymentModeId(), 'c_paiement', 'id', 'code', 1);
+		$key = ($code == 'LIQ' ? 'CASH' : ($code == 'CHQ' ? 'CHEQUE' : $code));
+		if (getDolGlobalInt('CASHDESK_ID_BANKACCOUNT_'.$key.$terminal) <= 0) {
+			return $langs->trans('SquareErrorTakeposBank', $langs->transnoentitiesnoconv('PaymentTypeShort'.$code), $terminal);
+		}
+	}
+	return '';
+}

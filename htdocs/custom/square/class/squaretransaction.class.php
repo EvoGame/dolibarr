@@ -46,6 +46,9 @@ class SquareTransaction
 	const STATUS_ATTENTION = 'attention';
 	const STATUS_CANCELLED = 'cancelled';
 
+	/** Source of a Terminal checkout sent from TakePOS: TakePOS itself records the payment (see refresh()) */
+	const SOURCE_TAKEPOS = 'takepos';
+
 	/** Name recorded in llx_paiement.ext_payment_site. paymentok.php records 'square' (the payment method). */
 	const PAYMENT_SITE = 'square';
 
@@ -422,6 +425,16 @@ class SquareTransaction
 		}
 
 		// Paid
+		if ($this->source == self::SOURCE_TAKEPOS) {
+			// TakePOS validates the sale and records the payment itself (stock, cash control, bank account of the
+			// till), once the page that sent the checkout sees it 'processing'. A sale abandoned on the till is
+			// left to a person: the invoice is still a draft, and may have been paid another way since.
+			if ($handover) {
+				$note = $langs->transnoentitiesnoconv('SquareNoteTakeposNotCompleted');
+				return $this->setStatus(self::STATUS_ATTENTION, array(self::STATUS_PENDING), array('square_payment_id' => implode(',', $state['paymentids']), 'note' => $note)) ? 1 : 0;
+			}
+			return $this->claim($state['paymentids']) ? 1 : 0;
+		}
 		if ($this->fk_facture <= 0) {
 			if (!$handover) {
 				return 0;	// The buyer may still come back to paymentok.php, which records it
@@ -437,7 +450,8 @@ class SquareTransaction
 	}
 
 	/**
-	 * For a row claimed by paymentok.php: once the page has had time to run, find the payment it recorded
+	 * For a row claimed by paymentok.php or handed to TakePOS: once the page has had time to run, find the payment
+	 * it recorded
 	 *
 	 * @return int	1 if the row changed, 0 if not, <0 on error
 	 */
@@ -446,6 +460,9 @@ class SquareTransaction
 		global $langs;
 
 		$paiementid = $this->findRecordedPayment($this->mainPaymentId());
+		if ($paiementid == 0 && $this->source == self::SOURCE_TAKEPOS) {
+			$paiementid = $this->linkTakeposPayment();
+		}
 		if ($paiementid < 0) {
 			return -1;
 		}
@@ -458,6 +475,268 @@ class SquareTransaction
 		}
 		$note = $langs->transnoentitiesnoconv('SquareNoteNotRecorded');
 		return $this->setStatus(self::STATUS_ATTENTION, array(self::STATUS_PROCESSING), array('note' => $note)) ? 1 : 0;
+	}
+
+	/**
+	 * Find the payment TakePOS recorded for a row, and mark it with the Square payment id.
+	 *
+	 * TakePOS records no external id, so the payment is the one on the invoice, made after the checkout, for its
+	 * amount, with the Square payment mode, and not yet linked to any external payment.
+	 *
+	 * @return int	Payment id, 0 if none yet, <0 on error
+	 */
+	public function linkTakeposPayment()
+	{
+		$sql = "SELECT p.rowid FROM ".MAIN_DB_PREFIX."paiement as p";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."paiement_facture as pf ON pf.fk_paiement = p.rowid";
+		$sql .= " WHERE pf.fk_facture = ".((int) $this->fk_facture);
+		$sql .= " AND p.datec >= '".$this->db->idate($this->date_creation)."'";
+		$sql .= " AND p.fk_paiement = ".((int) squarePaymentModeId());
+		$sql .= " AND (p.ext_payment_id IS NULL OR p.ext_payment_id = '')";
+		$sql .= " AND ABS(pf.amount - ".((float) price2num($this->amount, 'MT')).") < 0.001";
+		$sql .= " ORDER BY p.rowid DESC";
+		$sql .= $this->db->plimit(1);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$obj = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+		if (!$obj) {
+			return 0;
+		}
+
+		// So the payment shows where it came from, and paymentok.php and findRecordedPayment() see it as used
+		$sql = "UPDATE ".MAIN_DB_PREFIX."paiement SET ext_payment_id = '".$this->db->escape($this->mainPaymentId())."',";
+		$sql .= " ext_payment_site = '".$this->db->escape(self::PAYMENT_SITE)."'";
+		$sql .= " WHERE rowid = ".((int) $obj->rowid)." AND (ext_payment_id IS NULL OR ext_payment_id = '')";
+		if (!$this->db->query($sql)) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		return (int) $obj->rowid;
+	}
+
+	/**
+	 * Create a Square payment link and its row.
+	 *
+	 * @param	SquareApi	$api			API client
+	 * @param	string		$name			Item name on the Square checkout page
+	 * @param	float		$amount			Amount
+	 * @param	string		$currency		ISO currency code
+	 * @param	string		$redirecturl	Page the buyer comes back to (paymentok.php)
+	 * @param	string		$note			Payment note in the Square Dashboard
+	 * @param	string		$buyeremail		Email to pre-fill
+	 * @param	string		$source			Source of the payment page ('invoice', 'order'...)
+	 * @param	string		$sourceref		Its ref
+	 * @param	int			$fkfacture		Invoice paid, if any
+	 * @param	string		$fulltag		Tag of the payment page
+	 * @return	?SquareTransaction			The row, or null on error ($this->error is set)
+	 */
+	public function createLink($api, $name, $amount, $currency, $redirecturl, $note, $buyeremail, $source, $sourceref, $fkfacture, $fulltag)
+	{
+		$link = $api->createPaymentLink($name, squareToMinor($amount, $currency), $currency, $redirecturl, $note, $buyeremail);
+		if ($link === null) {
+			$this->error = $api->error;
+			return null;
+		}
+
+		$row = new SquareTransaction($this->db);
+		$row->type = self::TYPE_LINK;
+		$row->livemode = $api->live;
+		$row->square_id = (string) $link['id'];
+		$row->square_order_id = (string) $link['order_id'];
+		$row->square_url = (string) $link['url'];
+		$row->source = $source;
+		$row->source_ref = $sourceref;
+		$row->fk_facture = $fkfacture;
+		$row->fulltag = $fulltag;
+		$row->amount = $amount;
+		$row->currency = $currency;
+		if ($row->create() < 0) {
+			// Without the row the payment could not be checked: do not let anyone pay it
+			$this->error = $row->error;
+			dol_syslog('Square payment link '.$link['id'].' created but not stored: '.$row->error, LOG_ERR, 0, '_payment');
+			$api->deletePaymentLink((string) $link['id']);
+			return null;
+		}
+		return $row;
+	}
+
+	/**
+	 * Payment link for what remains to pay on a validated customer invoice: the pending one, if it is for that
+	 * amount, else a new one (an older link for another amount is deleted on Square, so only one can be paid).
+	 *
+	 * The buyer comes back to paymentok.php, which records the payment (see ActionsSquare::isPaymentOK(), which
+	 * finds the row from the order id Square adds, since the buyer's browser has no session); if they never come
+	 * back, the cron job records it.
+	 *
+	 * @param	Facture		$invoice	Invoice
+	 * @param	User		$user		User asking for it (records an older link found paid meanwhile)
+	 * @return	?SquareTransaction		The row, or null on error ($this->error is set)
+	 */
+	public function getInvoiceLink($invoice, $user)
+	{
+		global $conf, $langs, $mysoc;
+
+		require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+		$langs->load('square@square');
+
+		$amount = (float) price2num($invoice->getRemainToPay(), 'MT');
+		if ($invoice->status != Facture::STATUS_VALIDATED || $invoice->paye || $invoice->type == Facture::TYPE_CREDIT_NOTE || $amount <= 0) {
+			$this->error = $langs->trans('SquareErrorInvoiceNotPayable');
+			return null;
+		}
+		if (!empty($invoice->multicurrency_code) && $invoice->multicurrency_code != $conf->currency) {
+			$this->error = $langs->trans('SquareNoteOtherCurrency', $invoice->multicurrency_code);
+			return null;
+		}
+
+		$api = new SquareApi();
+
+		// Reuse or retire the links already sent for this invoice
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."square_transaction";
+		$sql .= " WHERE entity = ".((int) $conf->entity)." AND type = '".$this->db->escape(self::TYPE_LINK)."'";
+		$sql .= " AND fk_facture = ".((int) $invoice->id)." AND status = '".$this->db->escape(self::STATUS_PENDING)."'";
+		$sql .= " AND livemode = ".((int) $api->live);
+		$sql .= " ORDER BY rowid DESC";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return null;
+		}
+		$ids = array();
+		while ($obj = $this->db->fetch_object($resql)) {
+			$ids[] = (int) $obj->rowid;
+		}
+		$this->db->free($resql);
+		foreach ($ids as $id) {
+			$old = new SquareTransaction($this->db);
+			if ($old->fetch($id) <= 0) {
+				continue;
+			}
+			if (abs($old->amount - $amount) < 0.001 && strtoupper($old->currency) == strtoupper($conf->currency) && $old->square_url !== '') {
+				return $old;
+			}
+			if (!$api->deletePaymentLink($old->square_id)) {
+				$this->error = $api->error;
+				return null;
+			}
+			// Paid in the meantime? Then refresh() records it, and the amount asked above is out of date
+			$old->refresh($user, true);
+			if ($old->status == self::STATUS_PENDING) {
+				$old->setStatus(self::STATUS_CANCELLED, array(self::STATUS_PENDING), array('note' => $langs->transnoentitiesnoconv('SquareNoteReplaced')));
+			} elseif ($old->status != self::STATUS_CANCELLED) {
+				$this->error = $langs->trans('SquareErrorPaidMeanwhile');
+				return null;
+			}
+		}
+
+		$fulltag = 'INV='.((int) $invoice->id).'.CUS='.((int) $invoice->socid).'.PM=square';
+		$redirecturl = DOL_MAIN_URL_ROOT.'/public/payment/paymentok.php?s=invoice&ref='.urlencode($invoice->ref).'&fulltag='.urlencode($fulltag).'&e='.((int) $conf->entity);
+		$email = (is_object($invoice->thirdparty) && !empty($invoice->thirdparty->email)) ? $invoice->thirdparty->email : '';
+
+		return $this->createLink(
+			$api,
+			$langs->transnoentitiesnoconv('SquarePaymentTo', $mysoc->name).' - '.$invoice->ref,
+			$amount,
+			$conf->currency,
+			$redirecturl,
+			'Dolibarr invoice '.$invoice->ref.' ('.$fulltag.')',
+			$email,
+			'invoice',
+			$invoice->ref,
+			$invoice->id,
+			$fulltag
+		);
+	}
+
+	/**
+	 * Send the payment link of an invoice to the customer, by email or SMS
+	 *
+	 * @param	Facture		$invoice	Validated customer invoice
+	 * @param	string		$channel	'email' or 'sms'
+	 * @param	string		$to			Email address or phone number
+	 * @param	User		$user		Sender
+	 * @return	?SquareTransaction		The link row, or null on error ($this->error is set)
+	 */
+	public function sendInvoiceLink($invoice, $channel, $to, $user)
+	{
+		global $conf, $langs, $mysoc;
+
+		$langs->loadLangs(array('errors', 'square@square'));
+		$invoice->fetch_thirdparty();
+		$to = trim($to);
+		if ($channel == 'email' && !isValidEmail($to)) {
+			$this->error = $langs->trans('ErrorBadEMail', $to);
+			return null;
+		}
+		if ($channel == 'sms' && !preg_match('/^\+?[0-9 .()-]{6,20}$/', $to)) {
+			$this->error = $langs->trans('SquareErrorBadPhone', $to);
+			return null;
+		}
+		if ($channel == 'sms' && !squareCanSendSms()) {
+			$this->error = $langs->trans('SquareErrorNoSms');
+			return null;
+		}
+
+		$row = $this->getInvoiceLink($invoice, $user);
+		if ($row === null) {
+			return null;
+		}
+
+		// In the customer's language
+		$outputlangs = $langs;
+		if (is_object($invoice->thirdparty) && !empty($invoice->thirdparty->default_lang) && $invoice->thirdparty->default_lang != $langs->defaultlang) {
+			$outputlangs = new Translate('', $conf);
+			$outputlangs->setDefaultLang($invoice->thirdparty->default_lang);
+		}
+		$outputlangs->loadLangs(array('main', 'bills', 'square@square'));
+		$amount = price($row->amount, 0, $outputlangs, 1, -1, -1, $row->currency);
+		$amount = html_entity_decode($amount, ENT_QUOTES, 'UTF-8');
+
+		if ($channel == 'email') {
+			require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
+			$from = getDolGlobalString('MAIN_MAIL_EMAIL_FROM', $mysoc->email);
+			$subject = $outputlangs->transnoentitiesnoconv('SquareLinkEmailSubject', $invoice->ref, $mysoc->name);
+			// Lang files keep line breaks as the two characters \n
+			$body = str_replace('\\n', "\n", $outputlangs->transnoentitiesnoconv('SquareLinkEmailBody', $invoice->ref, $amount, $row->square_url, $mysoc->name));
+			$mail = new CMailFile($subject, $to, $from, $body, array(), array(), array(), '', '', 0, 0, '', '', 'inv'.$invoice->id, '', 'standard');
+			if (!$mail->sendfile()) {
+				$this->error = $langs->trans('SquareErrorNotSent').' '.$mail->error;
+				return null;
+			}
+		} else {
+			require_once DOL_DOCUMENT_ROOT.'/core/class/CSMSFile.class.php';
+			$message = $outputlangs->transnoentitiesnoconv('SquareLinkSms', $mysoc->name, $invoice->ref, $amount, $row->square_url);
+			$sms = new CSMSFile(preg_replace('/[^0-9+]/', '', $to), getDolGlobalString('MAIN_SMS_FROM'), $message);
+			$sms->socid = (int) $invoice->socid;
+			if (!$sms->sendfile()) {
+				$this->error = $langs->trans('SquareErrorNotSent').' '.$sms->error;
+				return null;
+			}
+		}
+
+		// In the invoice's events
+		require_once DOL_DOCUMENT_ROOT.'/comm/action/class/actioncomm.class.php';
+		$event = new ActionComm($this->db);
+		$event->type_code = 'AC_OTH_AUTO';
+		$event->code = 'AC_SQUARE_LINK_SENT';
+		$event->label = $langs->transnoentitiesnoconv($channel == 'email' ? 'SquareLinkSentByEmail' : 'SquareLinkSentBySms', $to);
+		$event->note_private = $row->square_url;
+		$event->datep = dol_now();
+		$event->datef = $event->datep;
+		$event->percentage = -1;
+		$event->socid = (int) $invoice->socid;
+		$event->userownerid = (int) $user->id;
+		$event->elementtype = 'invoice';
+		$event->fk_element = (int) $invoice->id;
+		if ($event->create($user) < 0) {
+			dol_syslog('Square: event of the payment link not created: '.$event->error, LOG_WARNING);
+		}
+
+		return $row;
 	}
 
 	/**

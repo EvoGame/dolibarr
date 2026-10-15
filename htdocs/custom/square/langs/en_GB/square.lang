@@ -3,6 +3,7 @@ ModuleSquareName = Square
 ModuleSquareDesc = Square online payment links and in-person card payments on a Square Terminal
 Permission59110001 = See Square payment links and Terminal payments
 Permission59110002 = Take in-person card payments on a Square Terminal
+Permission59110003 = Send Square payment links to customers by email or SMS
 
 # Setup
 SquareSetup = Square module setup
@@ -104,3 +105,33 @@ SquareNoteInvoiceNotFound = Invoice %s not found.
 SquareNoteOtherCurrency = Paid in %s, which is not the company currency: record it by hand.
 SquareNoteExpired = Unpaid: expired and deleted on Square.
 SquareNoteResolvedBy = Resolved by %s on %s
+
+# Payment links sent by email or SMS
+SquareSendLink = Send Square payment link
+SquareSendLinkHelp = Sends the customer a link to pay what remains on this invoice (%s) on Square's checkout page: card, Apple Pay or Google Pay. The payment is recorded on the invoice when it is made. Sending again reuses the same link while the amount is unchanged.
+SquareSendByEmail = Send by email
+SquareSendBySms = Send by SMS
+SquarePhoneForSms = Mobile phone
+SquareErrorNoSms = SMS cannot be sent: set up an SMS provider in Home > Setup > SMS first.
+SquareErrorBadPhone = Phone number %s is not valid.
+SquareErrorNotSent = The payment link was created but could not be sent.
+SquareErrorPaidMeanwhile = A payment was received on this invoice in the meantime. Reload the page to see what remains to pay.
+SquareLinkSentByEmail = Square payment link sent by email to %s
+SquareLinkSentBySms = Square payment link sent by SMS to %s
+SquareLinkEmailSubject = Invoice %s from %s: pay online
+SquareLinkEmailBody = Hello,\n\nYou can pay invoice %s (%s) securely online by card, Apple Pay or Google Pay:\n%s\n\nThank you,\n%s
+SquareLinkSms = %s: pay invoice %s (%s) securely at %s
+SquareNoteReplaced = Replaced by a link for another amount; deleted on Square.
+
+# TakePOS
+SquareTakeposTerminal = Square Terminal
+SquareTakeposLink = Payment link
+SquareTakeposSending = Sending to Square...
+SquareTakeposLinkHelp = The sale is validated as awaiting payment, and the customer receives a link to pay it on their phone. The payment is recorded on the sale when it is made.
+SquareTakeposAttention = The card was charged, but TakePOS did not record the payment: %s Do not take payment again. Record it on the sale by hand, then mark it resolved on the Square payments list.
+SquareErrorTakeposBank = No bank account is set for the payment mode %s on TakePOS terminal %s (TakePOS setup, terminal tab).
+SquareTakeposTills = TakePOS tills
+SquareTakeposTillsHelp = The Square Terminal each TakePOS till sends card payments to. TakePOS records the payment itself, in the bank account its terminal setup gives the payment mode of the Square setup (card, unless another one is chosen).
+SquareUseDefaultDevice = Default Terminal
+SquareReadyShort = Ready
+SquareNoteTakeposNotCompleted = Paid on the Square Terminal from TakePOS, but the sale was not completed on the till (page closed?), so the payment was not recorded. Check the sale has not been paid another way since, then record it by hand.

@@ -51,16 +51,18 @@ class modSquare extends DolibarrModules
 		$this->descriptionlong = 'ModuleSquareDesc';
 		$this->editor_name = 'Infomatical';
 		$this->editor_url = '';
-		$this->version = '0.1.0';
+		$this->version = '0.2.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'fa-credit-card';
 
 		$this->module_parts = array(
 			// 'newpayment': Square button and checkout on the public payment pages (public/payment/newpayment.php, paymentok.php)
-			// 'invoicecard': "Take payment on Square Terminal" button on the customer invoice card
+			// 'invoicecard': "Take payment on Square Terminal" and "Send Square payment link" on the customer invoice card
+			// 'takepospay': the same two as payment buttons of TakePOS (takepos/pay.php)
 			'hooks' => array(
 				'newpayment',
 				'invoicecard',
+				'takepospay',
 			),
 			'moduleforexternal' => 0,
 		);
@@ -123,6 +125,12 @@ class modSquare extends DolibarrModules
 		$this->rights[$r][1] = 'Take in-person card payments on a Square Terminal';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'terminal';
+		$this->rights[$r][5] = '';
+		$r++;
+		$this->rights[$r][0] = $this->numero * 100 + 3;
+		$this->rights[$r][1] = 'Send Square payment links to customers by email or SMS';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'sendlink';
 		$this->rights[$r][5] = '';
 		$r++;
 
