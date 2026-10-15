@@ -124,14 +124,13 @@ if ($problem !== '') {
 	print img_picto('', 'email', 'class="pictofixedwidth"').'<input type="email" name="email" class="minwidth300" value="'.dolPrintHTMLForAttribute($email).'"> ';
 	print '<button type="submit" class="button small" name="channel" value="email">'.$langs->trans('SquareSendByEmail').'</button>';
 	print '</td></tr>';
-	print '<tr><td>'.$langs->trans('SquarePhoneForSms').'</td><td>';
-	print img_picto('', 'phone', 'class="pictofixedwidth"').'<input type="tel" name="phone" class="minwidth300" value="'.dolPrintHTMLForAttribute($phone).'"> ';
+	// No SMS provider: no SMS option at all, as in TakePOS
 	if (squareCanSendSms()) {
+		print '<tr><td>'.$langs->trans('SquarePhoneForSms').'</td><td>';
+		print img_picto('', 'phone', 'class="pictofixedwidth"').'<input type="tel" name="phone" class="minwidth300" value="'.dolPrintHTMLForAttribute($phone).'"> ';
 		print '<button type="submit" class="button small" name="channel" value="sms">'.$langs->trans('SquareSendBySms').'</button>';
-	} else {
-		print '<span class="opacitymedium">'.$langs->trans('SquareErrorNoSms').'</span>';
+		print '</td></tr>';
 	}
-	print '</td></tr>';
 	print '</table>';
 	print '<div class="center margintoponly"><a class="button button-cancel" href="'.$backurl.'">'.$langs->trans('Cancel').'</a></div>';
 	print '</form>';

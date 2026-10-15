@@ -91,7 +91,7 @@ Hooks in context `takepospay` (`takepos/pay.php`): `addMoreActionsButtons` retur
   that, from the pending links with that tag (each checked with Square).
 - Email: `CMailFile`, from `MAIN_MAIL_EMAIL_FROM`. SMS: `CSMSFile`, which needs `MAIN_SMS_SENDMODE` and the
   module providing it (OVH...) enabled: `squareCanSendSms()` resolves it as `CSMSFile::sendfile()` does. Without
-  it, TakePOS shows no SMS option at all, and the invoice card's send page says why SMS is unavailable. The text
+  it, neither TakePOS nor the invoice card's send page shows an SMS option. The text
   is in the customer's language when the third party has one.
 - An event `AC_SQUARE_LINK_SENT` is added to the invoice.
 
