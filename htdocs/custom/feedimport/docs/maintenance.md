@@ -25,6 +25,7 @@ rule are the same as for Infomatical.
 |---|---|---|
 | Module number | `591200` | Range 500000–599999 (modules not on DoliStore). Must not change after deployment. |
 | Rights class / module key | `feedimport` | `isModEnabled('feedimport')`, `$user->hasRight('feedimport', 'read' / 'write')`, langs `feedimport@feedimport` |
+| Family | Products (`products`) | With the global constant `INFOMATICAL_GROUP_MODULES` = `1` (**Home → Setup → Other setup**), every Infomatical module moves to one *Infomatical* family instead, listed after Dolibarr's own families in **Home → Setup → Modules**, to find them quickly when testing |
 | Permissions | `59120001` read, `59120002` write | Feed settings need an administrator |
 | Minimum Dolibarr | 24.0 | |
 | Dependencies | `modProduct` | Stocks, Vendors, Scheduled jobs, Email Collector as needed (the Feeds tab lists what is missing) |

@@ -46,6 +46,13 @@ class modInfomatical extends DolibarrModules
 		$this->rights_class = 'infomatical';
 		$this->family = 'crm';
 		$this->module_position = '90';
+		// INFOMATICAL_GROUP_MODULES gathers all Infomatical modules under one heading of the
+		// modules list (Home > Setup > Modules), to find them quickly when testing.
+		// Dolibarr shows custom families of external modules after its own families.
+		if (getDolGlobalInt('INFOMATICAL_GROUP_MODULES')) {
+			$this->family = 'infomatical';
+			$this->familyinfo = array('infomatical' => array('position' => '090', 'label' => 'Infomatical'));
+		}
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleInfomaticalDesc';
 		$this->descriptionlong = 'ModuleInfomaticalDesc';
