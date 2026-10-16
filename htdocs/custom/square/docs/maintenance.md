@@ -23,6 +23,7 @@ rule are the same as for Infomatical.
 |---|---|---|
 | Module number | `591100` | Range 500000–599999 (modules not on DoliStore). Must not change after deployment. |
 | Rights class / module key | `square` | `isModEnabled('square')`, `$user->hasRight('square', 'read' / 'terminal')`, langs `square@square` |
+| Family | Interfaces (`interface`) | With the global constant `INFOMATICAL_GROUP_MODULES` = `1` (**Home → Setup → Other setup**), every Infomatical module moves to one *Infomatical* family instead, listed after Dolibarr's own families in **Home → Setup → Modules**, to find them quickly when testing |
 | Permissions | `59110001` read, `59110002` terminal, `59110003` sendlink | |
 | Minimum Dolibarr | 24.0 | |
 | Dependencies | `modFacture` | *Banks & Cash* and *Scheduled jobs* are optional but recommended |

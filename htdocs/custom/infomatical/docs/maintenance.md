@@ -84,6 +84,7 @@ never been configured, all tools are allowed.
 |---|---|---|
 | Module number | `591000` | 500000–599999 is the range Dolibarr leaves for modules not published on DoliStore. Must not change after deployment: permission ids and stored settings derive from it. |
 | Rights class / module key | `infomatical` | Used by `isModEnabled('infomatical')`, `$user->hasRight('infomatical', …)`, langs `infomatical@infomatical` |
+| Family | Customer Relationship Management (`crm`) | With the global constant `INFOMATICAL_GROUP_MODULES` = `1` (**Home → Setup → Other setup**), every Infomatical module moves to one *Infomatical* family instead, listed after Dolibarr's own families in **Home → Setup → Modules**, to find them quickly when testing |
 | Minimum Dolibarr | 24.0 | The AI write tools need 25.0 or later; see [Running on Dolibarr 24](#running-on-dolibarr-24) |
 | Dependencies | `modTicket` | |
 
